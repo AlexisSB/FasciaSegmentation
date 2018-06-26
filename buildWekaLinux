@@ -1,0 +1,7 @@
+#!/bin/bash
+
+mvn clean install -Dmaven.test.skip -DskipTests=true -Dsource.skip
+cp ./target/Fascia_Segmentation_Weka-0.0.1.jar ~/Desktop/Fiji.app/plugins
+
+killall ImageJ-linux64
+/home/alexis/Desktop/Fiji.app/ImageJ-linux64 %F &
