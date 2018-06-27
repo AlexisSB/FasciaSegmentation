@@ -845,7 +845,7 @@ public class Main implements PlugIn
 					if(r instanceof PointRoi){
 						//create shortest path and add the polygon roi instead
 						PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(r.getContainedPoints());
-						line.setStrokeWidth(5);
+						line.setStrokeWidth(2);
 						rois.add(line);
 					}else {
 						rois.add(r);
@@ -1287,7 +1287,7 @@ public class Main implements PlugIn
 					//create polyline roi
 					IJ.log("creating line roi");
 					PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(newRoi.getContainedPoints());
-					line.setStrokeWidth(5);
+					line.setStrokeWidth(2);
 					//add to temporary overlay
 					ArrayList<Roi> tempRoi = new ArrayList<Roi>();
 					tempRoi.add(line);
@@ -3183,7 +3183,7 @@ public class Main implements PlugIn
 					 		IntelligentScissors scissors = new IntelligentScissors();
 					 		scissors.setImage(win.getDisplayImage());
 					 		PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(roi.getContainedPoints());
-					 		line.setStrokeWidth(5);
+					 		line.setStrokeWidth(2);
 					 		line.setStrokeColor(r.getStrokeColor());
 					 		roi = line;
 						}
@@ -3206,25 +3206,32 @@ public class Main implements PlugIn
 		return null;
 	}
 
+	/**
+	 * Method called whenever user selected points change to update and draw the intelligent scissor lines.
+	 */
 	private void updateScissorPath(){
 
-		PointRoi roi = (PointRoi) displayImage.getRoi();
+		final PointRoi roi = (PointRoi) displayImage.getRoi();
 		ArrayList<Roi> tempRoi = new ArrayList<Roi>();
-		IJ.log("Scissor User Selected Point \n " + Arrays.toString(roi.getContainedPoints()));
-		//Pull points from current roi
+		IJ.log("User Selected Points : \n " + Arrays.toString(roi.getContainedPoints()));
 
 		if(roi.getContainedPoints().length < 2){
-			IJ.log("Point A");
+			//IJ.log("1. Less than 2 points, not possible to draw a line");
 			return;
 		}else{
-			//Add point to scissors
-			IJ.log("Point B");
+			//IJ.log("2. Creating Fascia path between selected points");
 			PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(roi.getContainedPoints());
-			line.setStrokeWidth(2);
-			IJ.log("Point C");
-			PolygonRoi edge = (PolygonRoi) edgeScissors.drawShortestPath(roi.getContainedPoints());
+			//line.setStrokeWidth(1);
+			//IJ.log("Fascia path : " + line);
+
+			edgeScissors.setMiddlePath(line.getContainedPoints());
+
+			PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoi();
+			PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getEdgeComplementRoi();
+			//PolygonRoi edge = (PolygonRoi) edgeScissors.drawShortestPath(roi.getContainedPoints());
 			tempRoi.add(line);
 			tempRoi.add(edge);
+			tempRoi.add(oppositeEdge);
 			temporaryOverlay.setRoi(tempRoi);
 
 			//Line deleted when path updated

@@ -3,18 +3,203 @@ package fasciaSegmentation;
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
+import ij.measure.CurveFitter;
 import ij.process.ImageConverter;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.PriorityQueue;
 
 public class EdgeScissors extends IntelligentScissors {
 
+    private Point[] middlePath;
+    private Point[] edgePath;
+    private Point[] edgeOppositePath;
+
     public EdgeScissors(){
         super();
     }
+
+    public void setMiddlePath(final Point[] path){
+        this.middlePath = path;
+    }
+
+    /*public Roi getEdgeRoi(){
+
+        //First Approach follows points generated from the normal at each point in the line.
+        Point[] path = getEdge();
+        int[] xArray = new int[path.length];
+        int[] yArray = new int[path.length];
+        for (int i = 0; i < path.length; i++) {
+            xArray[i] = path[i].x;
+            yArray[i] = path[i].y;
+        }
+        PolygonRoi pathRoi = new PolygonRoi(xArray, yArray, path.length, Roi.POLYLINE);
+        return pathRoi;
+    }*/
+
+    public Roi getEdgeRoi(){
+
+        //Second approach uses the first and last normal points as nodes for the edge line.
+        getEdge();
+        Point start = edgePath[1];
+        Point end = edgePath[edgePath.length-2];
+
+        Point[] userSelectedPoint = new Point[2];
+        userSelectedPoint[0] = start;
+        userSelectedPoint[1] = end;
+        PolygonRoi pathRoi = (PolygonRoi) drawShortestPath(userSelectedPoint);
+        return pathRoi;
+    }
+
+    public Roi getEdgeComplementRoi(){
+        getEdge();
+        Point start = edgeOppositePath[1];
+        Point end = edgeOppositePath[edgeOppositePath.length-2];
+        Point[] userSelectedPoint = new Point[2];
+        userSelectedPoint[0] = start;
+        userSelectedPoint[1] = end;
+        PolygonRoi pathRoi = (PolygonRoi) drawShortestPath(userSelectedPoint);
+        return pathRoi;
+    }
+
+    public void getEdge(){
+        double[] xData = new double[3];
+        double[] yData = new double[3];
+
+        //Set up edge path array
+        edgePath = new Point[middlePath.length];
+        edgeOppositePath = new Point[middlePath.length];
+        for (int i = 0 ; i < middlePath.length; i++){
+            edgePath[i] = new Point (middlePath[i].x, middlePath[i].y);
+            edgeOppositePath[i] = new Point(middlePath[i].x, middlePath[i].y);
+        }
+
+        //For each point on the path
+        for (int i = 1 ; i < middlePath.length-1; i++){
+            //Set up xData and yData
+            xData[0] = middlePath[i-1].x;
+            xData[1] = middlePath[i].x;
+            xData[2] = middlePath[i+1].x;
+            yData[0] = middlePath[i-1].y;
+            yData[1] = middlePath[i].y;
+            yData[2] = middlePath[i+1].y;
+            //get the slope of the normal line
+            double slope = getPerpendicularSlopeHelper(xData,yData);
+            //get a point to move to
+            Point direction = getQuadrantDirection(slope);
+            //calculate the resulting point.
+            //edgePath[i].x += 5 * direction.x;
+            //edgePath[i].y += 5 * direction.y;
+
+            edgePath[i] = movePointToEdge(edgePath[i], direction);
+
+            //Get opposite direction
+            Point oppositeDirection = new Point((-1*direction.x), (-1*direction.y));
+
+            edgeOppositePath[i] = movePointToEdge(edgeOppositePath[i], oppositeDirection);
+
+        }
+
+    }
+
+    private Point movePointToEdge(Point start, Point direction){
+        //Use greedy active contour movement.
+        double pointCost = 255 - imageCost.getPixel(start.x, start.y)[0];
+
+        Point newPoint = new Point(start.x + direction.x, start.y + direction.y);
+
+        double newCost = 255 - imageCost.getPixel(newPoint.x, newPoint.y)[0];
+        while(newCost < pointCost ){
+            pointCost = newCost;
+            newPoint = new Point(newPoint.x + direction.x, newPoint.y + direction.y);
+            newCost = 255 - imageCost.getPixel(newPoint.x, newPoint.y)[0];
+        }
+
+        return newPoint;
+    }
+
+    /**
+     * Approximates the normal to a function.
+     * Uses the imageJ curvefitter tool to do quadratic interpolation from three points.
+     * Quadratic equation then used to calculate slope of tangent line and normal line.
+     * The data passed to this function comes from the interpolated line between selected points.
+     * @param xData - x coordinates of three points
+     * @param yData - y coordinates of three points.
+     * @return the approximate slope of the normal line.
+     */
+    private double getPerpendicularSlopeHelper(double[] xData, double[] yData){
+
+        CurveFitter curveFitter = new CurveFitter(xData,yData);
+
+        double perpendicularSlope;
+        double[] params;
+        if(xData.length < 3) {
+            curveFitter.doFit(CurveFitter.STRAIGHT_LINE);
+            params = curveFitter.getParams();
+            System.out.println("Parameters: " + Arrays.toString(params));
+            if(params[1] == 0){
+                perpendicularSlope = 10000000; //Large number.
+
+            }else{
+                perpendicularSlope = -1/params[1];
+                System.out.println("Perpendicular Slope : " + perpendicularSlope);
+            }
+
+        }else { //Multi point do a quadratic interpolation
+
+            curveFitter.doFit(CurveFitter.POLY2);
+            params = curveFitter.getParams();
+
+            System.out.println("Parameters : " + Arrays.toString(params));
+            double slope = params[1] + 2 * params[2] * xData[1];
+            assert(slope != 0);
+            System.out.println("Poly slope : " + slope);
+
+            //Start here
+            perpendicularSlope = -1/slope;
+
+
+        }
+
+        return perpendicularSlope;
+
+    }
+
+    /**
+     * Returns the approximate direction to move in for a given slope of line.
+     * Break up space into 3x3 pixel grid and map possible slopes onto it.
+     * Provides normalisation for large slopes and meaningful direction.
+     * @param slope
+     * @return vector in form of point approximating the slope direction.
+     */
+    public Point getQuadrantDirection(double slope){
+
+        double angle = Math.atan(slope);
+        angle = Math.toDegrees(angle);
+        System.out.println("Angle : " + angle);
+
+        if (angle >= -18 && angle <= 18){
+            return new Point(1,0);
+        }
+        if (angle >= 18 && angle <= 70){
+            return new Point(1,-1);
+        }
+        if (angle >= 70 && angle <= 90){
+            return new Point(0,-1);
+        }
+        if (angle <= -18 && angle >= -70){
+            return new Point(1,1);
+        }
+        if (angle <= -70 && angle >= -90){
+            return new Point(0,1);
+        }
+        return new Point(0,0);
+    }
+
+
 
     /**
      *  Converts RGB image into imageCost channel image used for scissors.
@@ -33,33 +218,6 @@ public class EdgeScissors extends IntelligentScissors {
         this.imageCost = getSobel(saturation, 5);
 
         setupInfoMatrix();
-    }
-
-
-    /**
-     * Traces the shortest path between two points after successful shortest path search.
-     * Follows the node previous pointers from end to the start.
-     * Only works if shortest path search has been done using the two points of interest.
-     * @param start - start node point.
-     * @param goal - end node point.
-     * @return list of points tracing shortest path from start to goal, null if path unknown.
-     */
-    public ArrayList<Point> getShortestPath(Point start, Point goal) {
-        Point temp = new Point(goal.x, goal.y);
-        ArrayList<Point> path = new ArrayList<Point>();
-        while (!temp.equals(start)) {
-            Point previous = infoMatrix[temp.y][temp.x].previous;
-            if (previous != null) {
-                temp.x += previous.x;
-                temp.y += previous.y;
-                path.add(new Point(temp.x, temp.y));
-            }else{
-                System.err.println("Shortest path between two points has not been explored");
-                return null;
-            }
-        }
-        System.out.println("getShortestPath returns : \n" + path);
-        return path;
     }
 
     /**
@@ -107,6 +265,33 @@ public class EdgeScissors extends IntelligentScissors {
 
         return pathRoi;
 
+    }
+
+    /**
+     * Traces the shortest path between two points after successful shortest path search.
+     * Follows the node previous pointers from end to the start.
+     * Only works if shortest path search has been done using the two points of interest.
+     * @param start - start node point.
+     * @param goal - end node point.
+     * @return list of points tracing shortest path from start to goal, null if path unknown.
+     */
+    @Override
+    public ArrayList<Point> getShortestPath(Point start, Point goal) {
+        Point temp = new Point(goal.x, goal.y);
+        ArrayList<Point> path = new ArrayList<Point>();
+        while (!temp.equals(start)) {
+            Point previous = infoMatrix[temp.y][temp.x].previous;
+            if (previous != null) {
+                temp.x += previous.x;
+                temp.y += previous.y;
+                path.add(new Point(temp.x, temp.y));
+            }else{
+                System.err.println("Shortest path between two points has not been explored");
+                return null;
+            }
+        }
+        System.out.println("getShortestPath returns : \n" + path);
+        return path;
     }
 
     /**

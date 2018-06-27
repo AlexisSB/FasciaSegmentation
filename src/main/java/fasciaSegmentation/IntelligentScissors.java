@@ -88,8 +88,8 @@ public class IntelligentScissors {
      */
     protected void setupInfoMatrix(){
         infoMatrix = new PixelNode[imageCost.getHeight()][imageCost.getWidth()];
-        System.out.println(infoMatrix.length);
-        System.out.println(infoMatrix[0].length);
+        //System.out.println(infoMatrix.length);
+        //System.out.println(infoMatrix[0].length);
         for(int y = 0 ; y < infoMatrix.length; y++){
             for(int x = 0 ; x < infoMatrix[y].length; x++){
                 infoMatrix[y][x] = new PixelNode(x, y);
@@ -286,7 +286,7 @@ public class IntelligentScissors {
 
         while(!pq.isEmpty()){
             PixelNode node = pq.poll();
-            IJ.log(node.getPoint() + "");
+            //IJ.log(node.getPoint() + "");
 
             if(node.getPoint().equals(goal)){
                 return;
