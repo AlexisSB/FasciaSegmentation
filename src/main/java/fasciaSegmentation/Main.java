@@ -236,7 +236,7 @@ public class Main implements PlugIn
 		
 		// hue for assigning new color ([0.0-1.0])
 		float hue = 0f;
-		// imageCost for assigning new color ([0.5-1.0])
+		// saturation for assigning new color ([0.5-1.0])
 		float saturation = 1f; 
 
 		// first color is red: HSB( 0, 1, 1 )
@@ -3220,14 +3220,17 @@ public class Main implements PlugIn
 			return;
 		}else{
 			//IJ.log("2. Creating Fascia path between selected points");
-			PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(roi.getContainedPoints());
+			System.out.println("Roi Points : " + Arrays.toString(roi.getContainedPoints()));
 			//line.setStrokeWidth(1);
 			//IJ.log("Fascia path : " + line);
+			edgeScissors.reset();
+			edgeScissors.setUserSelectedPoints(roi.getContainedPoints());
+			PolygonRoi line = (PolygonRoi) edgeScissors.getMiddlePath();
 
-			edgeScissors.setMiddlePath(line.getContainedPoints());
-
-			PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoi();
-			PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getEdgeComplementRoi();
+			//PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoi();
+			//PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getEdgeComplementRoi();
+			PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoiWithAnchors();
+			PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getOppositeEdgeRoiWithAnchors();
 			//PolygonRoi edge = (PolygonRoi) edgeScissors.drawShortestPath(roi.getContainedPoints());
 			tempRoi.add(line);
 			tempRoi.add(edge);
@@ -3240,7 +3243,9 @@ public class Main implements PlugIn
 			//addExamples(4);
 
 		}
+		updateResultOverlay();
 		displayImage.updateAndDraw();
+
 	}
 
 	/**
@@ -3286,7 +3291,7 @@ public class Main implements PlugIn
 
 						// hue for assigning new color ([0.0-1.0])
 						float hue = 0f;
-						// imageCost for assigning new color ([0.5-1.0])
+						// saturation for assigning new color ([0.5-1.0])
 						float saturation = 1f;
 
 						for(int i=1; i<WekaSegmentation.MAX_NUM_CLASSES; i++)
@@ -3330,7 +3335,6 @@ public class Main implements PlugIn
 								IJ.setTool("multipoint");
 								scissors.scissorActive = true;
 								stopScissorSelectButton.setEnabled(true);
-								temporaryOverlay.getRoi().get(0).addRoiListener(roiListener);
 
 							}
 						});

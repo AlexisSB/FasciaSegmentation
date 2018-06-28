@@ -39,7 +39,7 @@ public class CurveFitTest {
         image.setRoi(line);
         image = image.flatten();
         IJ.save(image, "/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/Test.bmp");
-        IJ.save(myScissors.imageCost,"/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/Cost.bmp");
+        IJ.save(myScissors.saturation,"/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/Cost.bmp");
         System.out.println("Roi line : \n" + line);
 
         Point[] linePoints = line.getContainedPoints();

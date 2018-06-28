@@ -1,10 +1,8 @@
 package fasciaSegmentation;
 
-import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
-import ij.gui.StackWindow;
 import ij.plugin.filter.Convolver;
 import ij.plugin.filter.GaussianBlur;
 import ij.process.FloatProcessor;
@@ -18,13 +16,13 @@ import java.util.*;
  * Intelligent Scissors for selecting Fascia strands.
  * Uses intelligent scissors approach of doing shortest path search through image cost graph.
  * Shortest path done using A* search with euclidean distance heuristic.
- * Image cost in the graph is the intensity of the imageCost channel.
+ * Image cost in the graph is the intensity of the saturation channel.
  * @author Alexis Barltrop
  */
 public class IntelligentScissors {
 
     /** Saturation channel extracted from image*/
-    ImagePlus imageCost;
+    ImagePlus saturation;
     /** Points used to move between centre and neighbours*/
     Point[] neighbours = new Point[9];
     /** Array of vertices used for the search*/
@@ -54,7 +52,7 @@ public class IntelligentScissors {
     }
 
     /**
-     *  Converts RGB image into imageCost channel image used for scissors.
+     *  Converts RGB image into saturation channel image used for scissors.
      *
      * @param src - RGB image of slice
      */
@@ -79,7 +77,7 @@ public class IntelligentScissors {
         ImagePlus sobel = getSobel(saturation, 5);
         StackWindow sobelWindow = new StackWindow(sobel);*/
 
-        this.imageCost = saturation;
+        this.saturation = saturation;
         setupInfoMatrix();
     }
 
@@ -87,7 +85,7 @@ public class IntelligentScissors {
      * Initialises the node array for shortest path search.
      */
     protected void setupInfoMatrix(){
-        infoMatrix = new PixelNode[imageCost.getHeight()][imageCost.getWidth()];
+        infoMatrix = new PixelNode[saturation.getHeight()][saturation.getWidth()];
         //System.out.println(infoMatrix.length);
         //System.out.println(infoMatrix[0].length);
         for(int y = 0 ; y < infoMatrix.length; y++){
@@ -203,6 +201,7 @@ public class IntelligentScissors {
     public ArrayList<Point> getShortestPath(Point start, Point goal) {
         Point temp = new Point(goal.x, goal.y);
         ArrayList<Point> path = new ArrayList<Point>();
+        path.add(new Point(goal.x, goal.y));
         while (!temp.equals(start)) {
             Point previous = infoMatrix[temp.y][temp.x].previous;
             if (previous != null) {
@@ -214,6 +213,7 @@ public class IntelligentScissors {
                 return null;
             }
         }
+
         System.out.println("getShortestPath returns : \n" + path);
         return path;
     }
@@ -229,7 +229,7 @@ public class IntelligentScissors {
         ArrayList<Point> path = new ArrayList<Point>();
 
         //Reset the nodes so previous search paths dont interfer.
-        reset();
+        setupInfoMatrix();
 
         if (selectedPoints.length <2){
             for( int i =0; i < selectedPoints.length; i++){
@@ -240,19 +240,19 @@ public class IntelligentScissors {
                 System.out.println("Start : " + selectedPoints[i] + " End : " + selectedPoints[i+1]);
                 Point start = new Point(selectedPoints[i].x, selectedPoints[i].y);
                 Point end = new Point(selectedPoints[i+1].x, selectedPoints[i+1].y);
-                IJ.log("Point 1");
                 shortestPathSearch(start,end);
-                IJ.log("Point 2");
                 ArrayList<Point> shortestPath = getShortestPath(start, end);
-                IJ.log("Point 3");
+                System.out.println("Shortest path length : " + shortestPath.size());
                 //Reverse to get points in correct order before adding to path.
                 Collections.reverse(shortestPath);
                 path.addAll(shortestPath);
+                path.remove(path.size()-1);
             }
             //Add the last point.
             path.add(selectedPoints[selectedPoints.length-1]);
         }
-
+        System.out.println("\nPath size : " + path.size());
+        System.out.println( "Path : " + path + "\n");
         //Convert Arraylist to x and y array for constructing the polygon roi.
         int[] xArray = new int[path.size()];
         int[] yArray = new int[path.size()];
@@ -261,15 +261,18 @@ public class IntelligentScissors {
             yArray[i] = path.get(i).y;
         }
 
+        System.out.println("xArray : " + Arrays.toString(xArray));
+        System.out.println("yArray : " + Arrays.toString(yArray)+ "\n");
         PolygonRoi pathRoi = new PolygonRoi(xArray, yArray, path.size(), Roi.POLYLINE);
-
+        System.out.println("Path roi length : " + pathRoi.getContainedPoints().length);
+        System.out.println("Path roi : " + Arrays.toString(pathRoi.getContainedPoints()));
+        System.out.println();
         return pathRoi;
-
     }
 
     /**
      * A*  search for shortest path between start and goal.
-     * Greedy part cost is the intensity of the imageCost channel in the image.
+     * Greedy part cost is the intensity of the saturation channel in the image.
      * Heuristic is the sum of x and y distance to the goal.
      * @param start
      * @param goal
@@ -302,7 +305,7 @@ public class IntelligentScissors {
                 neighbour.y += neighbours[i].y;
 
                 //Bounds checking to make sure point inside the image
-                if(neighbour.x > 0 && neighbour.y > 0 && neighbour.x < imageCost.getWidth() && neighbour.y < imageCost.getHeight()) {
+                if(neighbour.x > 0 && neighbour.y > 0 && neighbour.x < saturation.getWidth() && neighbour.y < saturation.getHeight()) {
 
                     PixelNode nextNode = infoMatrix[neighbour.y][neighbour.x];
 
@@ -339,7 +342,7 @@ public class IntelligentScissors {
      * @param goal - end point in path search
      * @return the cost of moving from one to two.
      */
-    private double calculateLinkCost(Point one, Point two, Point goal) {
+    public double calculateLinkCost(Point one, Point two, Point goal) {
 
         //Apply extra cost to moving diagonal.
         int diagonalTest = Math.abs(two.x-one.x)+ Math.abs(two.y - one.y);
@@ -349,7 +352,7 @@ public class IntelligentScissors {
         }
 
         int distanceFromEnd = Math.abs(goal.y-two.y)+Math.abs(goal.x-goal.x);
-        int grayIntensity = imageCost.getPixel(two.x, two.y)[0];
+        int grayIntensity = saturation.getPixel(two.x, two.y)[0];
 
         return ((255-grayIntensity) + distanceFromEnd)*diagonalMultiplier;
 
