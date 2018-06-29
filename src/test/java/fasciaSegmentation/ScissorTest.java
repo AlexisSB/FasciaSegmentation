@@ -3,15 +3,86 @@ package fasciaSegmentation;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;
-import ij.gui.StackWindow;
+import org.junit.Before;
 import org.junit.Test;
-import weka.gui.treevisualizer.Edge;
 
 import java.awt.*;
+import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class ScissorTest {
+
+    private IntelligentScissorsTwo scissors;
+    ImagePlus testImage;
+
+    @Before
+    public void setUp(){
+        scissors = new IntelligentScissorsTwo();
+        testImage = IJ.openImage("/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/2.bmp");
+        assertTrue(testImage != null);
+        scissors.setImage(testImage);
+    }
+
+    @Test
+    public void testSetImage(){
+
+        assertTrue("Centre cost matrix uninitialised", scissors.centreLineCostMatrix != null);
+        assertTrue("Edge cost matrix uninitialised", scissors.edgeCostMatrix !=null);
+
+        IJ.save(scissors.centreLineCostMatrix, "/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/centrecost.bmp");
+        IJ.save(scissors.edgeCostMatrix, "/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/edgecost.bmp");
+
+    }
+
+    @Test
+    public void testSettingUserSelectedPoints(){
+
+        ArrayList<Point> points = new ArrayList<Point>();
+        points.add(new Point(10,10));
+        points.add(new Point( 20,10));
+        scissors.setUserSelectedPoints(points);
+
+        assertFalse(scissors.centreLinePath.isEmpty());
+        assertFalse(scissors.edgeLinePath.isEmpty());
+        assertFalse(scissors.oppositeEdgeLinePath.isEmpty());;
+
+
+    }
+
+    @Test
+    public void testSetUpPathSearchMatrix(){
+        scissors.setUpPathSearchMatrix();
+        assertTrue("pathSearchMatrix uninitialised", scissors.pathSearchMatrix !=null);
+
+        for(int row = 0 ; row < testImage.getHeight(); row++){
+            for( int col = 0; col < testImage.getWidth(); col++){
+                assertTrue("State not set to initial state" , scissors.pathSearchMatrix[row][col].state == IntelligentScissorsTwo.State.INITIAL);
+                assertTrue("Previous node not set to null" , scissors.pathSearchMatrix[row][col].previous == null);
+                assertTrue("Cost not set to double max" , scissors.pathSearchMatrix[row][col].cost == Double.MAX_VALUE);
+                assertTrue("X coordinate incorrect", scissors.pathSearchMatrix[row][col].x == col);
+                assertTrue("Y coordinate incorrect", scissors.pathSearchMatrix[row][col].y == row);
+            }
+        }
+    }
+
+    @Test
+    public void testFindNormalDirection(){
+        ArrayList<Point> path = new ArrayList<Point>();
+
+        path.add(new Point (0,0));
+        path.add(new Point (3,9));
+        path.add(new Point (6,36));
+
+        double slope = scissors.findNormalDirection(path);
+
+        //System.out.println(slope);
+        assertEquals(slope , (-1.0/6.0), 0);
+
+    }
+
 
     @Test
     public void testShortestPath(){
@@ -70,8 +141,6 @@ public class ScissorTest {
         System.out.println("Roi line : \n" + line);
      }
 
-
-
     @Test
     public void testEdgeScissor(){
         ImagePlus image = IJ.openImage("/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/3.bmp");
@@ -86,7 +155,7 @@ public class ScissorTest {
         image.setRoi(line);
         image = image.flatten();
         IJ.save(image, "/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/Test.bmp");
-        IJ.save(myScissors.imageCost,"/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/Cost.bmp");
+        //IJ.save(myScissors.imageCost,"/Users/alexis/Anatomy_Project/TestSlices/SaturationTest/Cost.bmp");
         System.out.println("Roi line : \n" + line);
 
     }

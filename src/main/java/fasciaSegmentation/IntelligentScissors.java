@@ -378,7 +378,7 @@ public class IntelligentScissors {
             this.y = p.y;
             state = State.INITIAL;
             previous = null;
-        }
+                    }
 
         public PixelNode(int x, int y){
             this.x = x;

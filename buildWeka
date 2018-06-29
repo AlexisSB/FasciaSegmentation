@@ -4,4 +4,4 @@ mvn clean install -Dmaven.test.skip -DskipTests=true -Dsource.skip
 cp ./target/Fascia_Segmentation_Weka-0.0.1.jar /Users/alexis/Desktop/Fiji.app/plugins
 
 osascript -e 'quit app "Fiji.app"'
-open /Users/alexis/Desktop/Fiji.app
+DEBUG=1 /Users/alexis/Desktop/Fiji.app/Contents/MacOS/ImageJ-macosx

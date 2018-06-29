@@ -218,8 +218,7 @@ public class Main implements PlugIn
 
 	private boolean isProcessing3D = false;
 
-	private IntelligentScissors scissors = null;
-	private EdgeScissors edgeScissors = null;
+	private IntelligentScissorsTwo scissors = null;
 
 	/**
 	 * Basic constructor for graphical user interface use
@@ -473,7 +472,7 @@ public class Main implements PlugIn
 
 				@Override
 				public void mouseReleased(MouseEvent e) {
-					if(scissors.scissorActive) {
+					if(scissors.isCentreLineActive() || scissors.isEdgeLineActive()) {
 
 						exec.submit(new Runnable() {
 							@Override
@@ -844,8 +843,9 @@ public class Main implements PlugIn
 				{
 					if(r instanceof PointRoi){
 						//create shortest path and add the polygon roi instead
-						PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(r.getContainedPoints());
-						line.setStrokeWidth(2);
+						scissors.setUserSelectedPoints(r.getContainedPoints());
+						PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
+						//TODO add edges here.
 						rois.add(line);
 					}else {
 						rois.add(r);
@@ -1157,11 +1157,8 @@ public class Main implements PlugIn
 		displayImage.setSlice( trainingImage.getCurrentSlice() );
 		displayImage.setTitle( Main.PLUGIN_NAME + " " + Main.PLUGIN_VERSION );
 
-		scissors = new IntelligentScissors();
+		scissors = new IntelligentScissorsTwo();
 		scissors.setImage(displayImage);
-
-		edgeScissors = new EdgeScissors();
-		edgeScissors.setImage(displayImage);
 
 		//Build GUI
 		SwingUtilities.invokeLater(
@@ -1286,14 +1283,16 @@ public class Main implements PlugIn
 					temporaryOverlay.setColor(colors[i]);
 					//create polyline roi
 					IJ.log("creating line roi");
-					PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(newRoi.getContainedPoints());
+					scissors.setUserSelectedPoints(newRoi.getContainedPoints());
+					PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
+					//TODO Add edges here
 					line.setStrokeWidth(2);
 					//add to temporary overlay
 					ArrayList<Roi> tempRoi = new ArrayList<Roi>();
 					tempRoi.add(line);
 					IJ.log("Changing temp roi");
 					temporaryOverlay.setRoi(tempRoi);
-					scissors.scissorActive = true;
+					scissors.setCentreLineActive(true);
 					//change to class colour.
 				}
 
@@ -3180,9 +3179,10 @@ public class Main implements PlugIn
 					 {
 					 	Roi roi = (Roi) r.clone();
 					 	if(roi instanceof PointRoi){
-					 		IntelligentScissors scissors = new IntelligentScissors();
+					 		IntelligentScissorsTwo scissors = new IntelligentScissorsTwo();
 					 		scissors.setImage(win.getDisplayImage());
-					 		PolygonRoi line = (PolygonRoi) scissors.drawShortestPath(roi.getContainedPoints());
+					 		scissors.setUserSelectedPoints(roi.getContainedPoints());
+					 		PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
 					 		line.setStrokeWidth(2);
 					 		line.setStrokeColor(r.getStrokeColor());
 					 		roi = line;
@@ -3223,18 +3223,16 @@ public class Main implements PlugIn
 			System.out.println("Roi Points : " + Arrays.toString(roi.getContainedPoints()));
 			//line.setStrokeWidth(1);
 			//IJ.log("Fascia path : " + line);
-			edgeScissors.reset();
-			edgeScissors.setUserSelectedPoints(roi.getContainedPoints());
-			PolygonRoi line = (PolygonRoi) edgeScissors.getMiddlePath();
+			scissors.reset();
+			scissors.setUserSelectedPoints(roi.getContainedPoints());
+			PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
 
-			//PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoi();
-			//PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getEdgeComplementRoi();
-			PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoiWithAnchors();
-			PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getOppositeEdgeRoiWithAnchors();
+			//PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoiWithAnchors();
+			//PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getOppositeEdgeRoiWithAnchors();
 			//PolygonRoi edge = (PolygonRoi) edgeScissors.drawShortestPath(roi.getContainedPoints());
 			tempRoi.add(line);
-			tempRoi.add(edge);
-			tempRoi.add(oppositeEdge);
+			//tempRoi.add(edge);
+			//tempRoi.add(oppositeEdge);
 			temporaryOverlay.setRoi(tempRoi);
 
 			//Line deleted when path updated
@@ -3333,7 +3331,7 @@ public class Main implements PlugIn
 
 								IJ.log("Starting Scissor Select");
 								IJ.setTool("multipoint");
-								scissors.scissorActive = true;
+								scissors.setCentreLineActive(true);
 								stopScissorSelectButton.setEnabled(true);
 
 							}
@@ -3341,7 +3339,7 @@ public class Main implements PlugIn
 					}
 					else if(e.getSource() == stopScissorSelectButton) {
 						//set scissor active to false
-						scissors.scissorActive = false;
+						scissors.setCentreLineActive(false);
 						stopScissorSelectButton.setEnabled(false);
 					}else if(e.getSource() == copyRoiButton){
 						showCopyDialog();
@@ -3362,7 +3360,7 @@ public class Main implements PlugIn
 							}
 							if(e.getSource() == addExampleButton[i])
 							{
-								if(scissors.scissorActive && temporaryOverlay.getRoi() != null){
+								if(scissors.isCentreLineActive() && temporaryOverlay.getRoi() != null){
 									addExamples(i);
 									//addExamplesFromScissor(i);
 									temporaryOverlay.setRoi(null);
