@@ -52,7 +52,7 @@ public class PathFinder {
      * Centre line cost is dependent on the saturation of the image.
      * Edge costing depends on the difference of gaussian and sobel filters.
      */
-    public void setImage(ImagePlus src){
+    public synchronized void setImage(ImagePlus src){
         //Create working copy of image
         ImagePlus temp = src.duplicate();
 
@@ -73,7 +73,7 @@ public class PathFinder {
      * When called this will calculate the middle and edge paths ready for them to be called.
      * @param userSelectedPoints
      */
-    public void setUserSelectedPoints(final Point[] userSelectedPoints) {
+    public synchronized void setUserSelectedPoints(final Point[] userSelectedPoints) {
         this.userSelectedPoints = new ArrayList<Point>();
         for( Point p : userSelectedPoints){
             this.userSelectedPoints.add(p);
@@ -91,12 +91,14 @@ public class PathFinder {
      * Initialises the path search matrix and resets the search nodes.
      * Precondition : centreLine and edgeCost matrices must be set.
      */
-    public void setUpPathSearchMatrix() {
+    public synchronized void setUpPathSearchMatrix() {
 
         //y = height, x = width
         pathSearchMatrix = new PixelNode[centreLineCostMatrix.getHeight()][centreLineCostMatrix.getWidth()];
-        //System.out.println(infoMatrix.length);
-        //System.out.println(infoMatrix[0].length);
+        System.out.println("Resetting the path search node matrix");
+        System.out.println(pathSearchMatrix.length);
+        System.out.println(pathSearchMatrix[0].length);
+        System.out.println();
         for(int y = 0 ; y < pathSearchMatrix.length; y++){
             for(int x = 0 ; x < pathSearchMatrix[y].length; x++){
                 pathSearchMatrix[y][x] = new PixelNode(x, y);
@@ -105,7 +107,7 @@ public class PathFinder {
 
     }
 
-    public Roi getCentreLinePathRoi() {
+    public synchronized Roi getCentreLinePathRoi() {
         int[] xArray = new int[centreLinePath.size()];
         int[] yArray = new int[centreLinePath.size()];
         for (int i = 0; i < centreLinePath.size(); i++) {
@@ -116,7 +118,7 @@ public class PathFinder {
         return pathRoi;
     }
 
-    public Roi getEdgeLinePathRoi() {
+    public synchronized Roi getEdgeLinePathRoi() {
         int[] xArray = new int[edgeLinePath.size()];
         int[] yArray = new int[edgeLinePath.size()];
         for (int i = 0; i < edgeLinePath.size(); i++) {
@@ -128,7 +130,7 @@ public class PathFinder {
         return pathRoi;
     }
 
-    public Roi getOppositeEdgeLinePathRoi() {
+    public synchronized Roi getOppositeEdgeLinePathRoi() {
         int[] xArray = new int[oppositeEdgeLinePath.size()];
         int[] yArray = new int[oppositeEdgeLinePath.size()];
         for (int i = 0; i < oppositeEdgeLinePath.size(); i++) {
@@ -142,30 +144,30 @@ public class PathFinder {
         return pathRoi;
     }
 
-    public boolean isCentreLineActive() {
+    public synchronized boolean isCentreLineActive() {
         return centreLineActive;
     }
 
-    public void setCentreLineActive(boolean centreLineActive) {
+    public synchronized void setCentreLineActive(boolean centreLineActive) {
         this.centreLineActive = centreLineActive;
     }
 
-    public boolean isEdgeLineActive() {
+    public synchronized boolean isEdgeLineActive() {
         return edgeLineActive;
     }
 
-    public void setEdgeLineActive(boolean edgeLineActive) {
+    public synchronized void setEdgeLineActive(boolean edgeLineActive) {
         this.edgeLineActive = edgeLineActive;
     }
 
-    private void findCentreLine(){
+    private synchronized void findCentreLine(){
 
         ArrayList<Point> path = findShortestPath(userSelectedPoints, centreLineCostMatrix);
         centreLinePath.addAll(path);
 
     }
 
-    private void findEdgeLines(){
+    private synchronized void findEdgeLines(){
 
         //Need to calculate the edge points next to each of the user Selected Points
         ArrayList<ArrayList<Point>> edgePoint = findEdgeAnchorPoints();
@@ -185,7 +187,7 @@ public class PathFinder {
 
     }
 
-    private ArrayList<ArrayList<Point>> findEdgeAnchorPoints() {
+    private synchronized ArrayList<ArrayList<Point>> findEdgeAnchorPoints() {
 
         ArrayList<Point> edgeAnchorPoints = new ArrayList<Point>();
         ArrayList<Point> oppositeEdgeAnchorPoints = new ArrayList<Point>();
@@ -242,7 +244,7 @@ public class PathFinder {
         return output;
     }
 
-    private Point movePointToEdge(Point start, Point direction){
+    private synchronized Point movePointToEdge(Point start, Point direction){
         //Use greedy active contour movement.
         double pointCost = 255 - edgeCostMatrix.getPixel(start.x, start.y)[0];
 
@@ -258,7 +260,7 @@ public class PathFinder {
         return newPoint;
     }
 
-    private Point convertSlopeToDiscreteDirection(double slope) {
+    private synchronized Point convertSlopeToDiscreteDirection(double slope) {
         double angle = Math.atan(slope);
         angle = Math.toDegrees(angle);
         //System.out.println("Angle : " + angle);
@@ -282,7 +284,7 @@ public class PathFinder {
 
     }
 
-    protected double findNormalDirection(List<Point> points) {
+    protected synchronized double findNormalDirection(List<Point> points) {
         //Current version allows only three points to determine function.
         System.out.println("Interpolating points : " + points + "\n Size : " + points.size());
 
@@ -314,11 +316,11 @@ public class PathFinder {
         }
     }
 
-    private ArrayList<Point> findShortestPath(ArrayList<Point> points, ImagePlus costMatrix){
+    private synchronized ArrayList<Point> findShortestPath(ArrayList<Point> points, ImagePlus costMatrix){
         ArrayList<Point> path = new ArrayList<Point>();
 
         //Reset the nodes so previous search paths dont interfer.
-        setUpPathSearchMatrix();
+
 
         if(points.size() < 2){
             for( int i =0; i < points.size(); i++){
@@ -345,9 +347,10 @@ public class PathFinder {
         return path;
     }
 
-    private void findShortestPathHelperSearch(Point start, Point goal, ImagePlus costMatrix){
+    private synchronized void findShortestPathHelperSearch(Point start, Point goal, ImagePlus costMatrix){
         PriorityQueue<PixelNode> pq = new PriorityQueue<PixelNode>();
 
+        setUpPathSearchMatrix();
         //Setup first node
         PixelNode seed = pathSearchMatrix[start.y][start.x];
         seed.cost = 0;
@@ -400,7 +403,7 @@ public class PathFinder {
         }
     }
 
-    private ArrayList<Point> findShortestPathHelperTracePath(Point start, Point goal){
+    private synchronized ArrayList<Point> findShortestPathHelperTracePath(Point start, Point goal){
         Point temp = new Point(goal.x, goal.y);
         ArrayList<Point> path = new ArrayList<Point>();
         path.add(new Point(goal.x, goal.y));
@@ -421,7 +424,7 @@ public class PathFinder {
         return path;
     }
 
-    private double calculateLinkCost(Point one, Point two, Point goal, ImagePlus costMatrix){
+    private synchronized double calculateLinkCost(Point one, Point two, Point goal, ImagePlus costMatrix){
         //Apply extra cost to moving diagonal.
         int diagonalTest = Math.abs(two.x-one.x)+ Math.abs(two.y - one.y);
         double diagonalMultiplier = 1.0;
@@ -484,7 +487,7 @@ public class PathFinder {
         return  result;
     }
 
-    public void reset() {
+    public synchronized void reset() {
         userSelectedPoints.clear();
         centreLinePath.clear();
         edgeLinePath.clear();

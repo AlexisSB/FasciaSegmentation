@@ -477,7 +477,7 @@ public class Main implements PlugIn
 						exec.submit(new Runnable() {
 							@Override
 							public void run() {
-								//IJ.log("Mouse Released");
+//								//IJ.log("Mouse Released");
 								int x = e.getX();
 								int y = e.getY();
 								int offscreenX = getCanvas().offScreenX(x);
@@ -486,7 +486,9 @@ public class Main implements PlugIn
 								IJ.log("Mouse released : " + offscreenX + " " + offscreenY);
 								updateFasciaPath();
 							}
-						});/*
+						});
+					/*
+
 					}else if (roiListenerActive) {
 						exec.submit(new Runnable() {
 							@Override
@@ -496,6 +498,7 @@ public class Main implements PlugIn
 						});
 					}*/
 					}
+
 
 
 				}
@@ -527,12 +530,12 @@ public class Main implements PlugIn
 
 					public void adjustmentValueChanged(final AdjustmentEvent e) {
 						exec.submit(new Runnable() {
-							public void run() {							
+							public void run() {
 								if(e.getSource() == sliceSelector)
 								{
 									displayImage.killRoi(); //Remove any previous roi
 									fasciaFinder.setImage(displayImage); //Update image in the fasciaFinder
-									updateFasciaPath(); //Remove temporarily drawn lines
+									//updateFasciaPath(); //Remove temporarily drawn lines
 									drawExamples();
 									updateExampleLists();
 									if(showColorOverlay)
@@ -555,12 +558,12 @@ public class Main implements PlugIn
 					public void mouseWheelMoved(final MouseWheelEvent e) {
 
 						exec.submit(new Runnable() {
-							public void run() 
+							public void run()
 							{
 								//IJ.log("moving scroll");
 								displayImage.killRoi();
 								fasciaFinder.setImage(displayImage);
-								updateFasciaPath();
+								//updateFasciaPath();
 								drawExamples();
 								updateExampleLists();
 								if(showColorOverlay)
@@ -584,7 +587,7 @@ public class Main implements PlugIn
 					@Override
 					public void keyReleased(final KeyEvent e) {
 						exec.submit(new Runnable() {
-							public void run() 
+							public void run()
 							{
 								if(e.getKeyCode() == KeyEvent.VK_LEFT ||
 										e.getKeyCode() == KeyEvent.VK_RIGHT ||
@@ -596,7 +599,7 @@ public class Main implements PlugIn
 									//IJ.log("moving scroll");
 									displayImage.killRoi();
 									fasciaFinder.setImage(displayImage);
-									updateFasciaPath();
+									//updateFasciaPath();
 									updateExampleLists();
 									drawExamples();
 									if(showColorOverlay)
@@ -3253,7 +3256,7 @@ public class Main implements PlugIn
 			//addExamples(4);
 
 		}
-		updateResultOverlay();
+		//updateResultOverlay();
 		displayImage.updateAndDraw();
 
 	}
