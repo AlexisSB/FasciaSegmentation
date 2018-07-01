@@ -218,7 +218,7 @@ public class Main implements PlugIn
 
 	private boolean isProcessing3D = false;
 
-	private IntelligentScissorsTwo scissors = null;
+	private PathFinder fasciaFinder = null;
 
 	/**
 	 * Basic constructor for graphical user interface use
@@ -472,7 +472,7 @@ public class Main implements PlugIn
 
 				@Override
 				public void mouseReleased(MouseEvent e) {
-					if(scissors.isCentreLineActive() || scissors.isEdgeLineActive()) {
+					if(fasciaFinder.isCentreLineActive() || fasciaFinder.isEdgeLineActive()) {
 
 						exec.submit(new Runnable() {
 							@Override
@@ -482,16 +482,16 @@ public class Main implements PlugIn
 								int y = e.getY();
 								int offscreenX = getCanvas().offScreenX(x);
 								int offscreenY = getCanvas().offScreenY(y);
-								//scissors.addUserSelectedPoints(new Point(offscreenX, offscreenY));
+								//fasciaFinder.addUserSelectedPoints(new Point(offscreenX, offscreenY));
 								IJ.log("Mouse released : " + offscreenX + " " + offscreenY);
-								updateScissorPath();
+								updateFasciaPath();
 							}
 						});/*
 					}else if (roiListenerActive) {
 						exec.submit(new Runnable() {
 							@Override
 							public void run() {
-								updateScissorPath();
+								updateFasciaPath();
 							}
 						});
 					}*/
@@ -530,8 +530,9 @@ public class Main implements PlugIn
 							public void run() {							
 								if(e.getSource() == sliceSelector)
 								{
-									scissors.setImage(displayImage);
-									displayImage.killRoi();
+									displayImage.killRoi(); //Remove any previous roi
+									fasciaFinder.setImage(displayImage); //Update image in the fasciaFinder
+									updateFasciaPath(); //Remove temporarily drawn lines
 									drawExamples();
 									updateExampleLists();
 									if(showColorOverlay)
@@ -558,7 +559,8 @@ public class Main implements PlugIn
 							{
 								//IJ.log("moving scroll");
 								displayImage.killRoi();
-								scissors.setImage(displayImage);
+								fasciaFinder.setImage(displayImage);
+								updateFasciaPath();
 								drawExamples();
 								updateExampleLists();
 								if(showColorOverlay)
@@ -593,7 +595,8 @@ public class Main implements PlugIn
 								{
 									//IJ.log("moving scroll");
 									displayImage.killRoi();
-									scissors.setImage(displayImage);
+									fasciaFinder.setImage(displayImage);
+									updateFasciaPath();
 									updateExampleLists();
 									drawExamples();
 									if(showColorOverlay)
@@ -843,13 +846,17 @@ public class Main implements PlugIn
 				{
 					if(r instanceof PointRoi){
 						//create shortest path and add the polygon roi instead
-						scissors.setUserSelectedPoints(r.getContainedPoints());
-						PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
-						//TODO add edges here.
+						fasciaFinder.setUserSelectedPoints(r.getContainedPoints());
+						PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
+						PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
+						PolygonRoi oppositeEdge = (PolygonRoi) fasciaFinder.getOppositeEdgeLinePathRoi();
 						rois.add(line);
+						rois.add(edge);
+						rois.add(oppositeEdge);
 					}else {
 						rois.add(r);
-					}					//IJ.log("painted ROI: " + r + " in color "+ colors[i] + ", slice = " + currentSlice);
+					}
+					//IJ.log("painted ROI: " + r + " in color "+ colors[i] + ", slice = " + currentSlice);
 				}
 				roiOverlay[i].setRoi(rois);
 			}
@@ -1157,8 +1164,9 @@ public class Main implements PlugIn
 		displayImage.setSlice( trainingImage.getCurrentSlice() );
 		displayImage.setTitle( Main.PLUGIN_NAME + " " + Main.PLUGIN_VERSION );
 
-		scissors = new IntelligentScissorsTwo();
-		scissors.setImage(displayImage);
+		//Instantiate the fascia path finder
+		fasciaFinder = new PathFinder();
+		fasciaFinder.setImage(displayImage);
 
 		//Build GUI
 		SwingUtilities.invokeLater(
@@ -1283,16 +1291,23 @@ public class Main implements PlugIn
 					temporaryOverlay.setColor(colors[i]);
 					//create polyline roi
 					IJ.log("creating line roi");
-					scissors.setUserSelectedPoints(newRoi.getContainedPoints());
-					PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
-					//TODO Add edges here
-					line.setStrokeWidth(2);
+					fasciaFinder.setUserSelectedPoints(newRoi.getContainedPoints());
+					PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
+					PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
+					PolygonRoi oppositeEdge = (PolygonRoi) fasciaFinder.getOppositeEdgeLinePathRoi();
+
 					//add to temporary overlay
 					ArrayList<Roi> tempRoi = new ArrayList<Roi>();
 					tempRoi.add(line);
+					tempRoi.add(edge);
+					tempRoi.add(oppositeEdge);
+
 					IJ.log("Changing temp roi");
 					temporaryOverlay.setRoi(tempRoi);
-					scissors.setCentreLineActive(true);
+					//TODO Check if neccesary to change the path finder activation.
+					fasciaFinder.setCentreLineActive(true);
+					fasciaFinder.setEdgeLineActive(true);
+
 					//change to class colour.
 				}
 
@@ -3179,11 +3194,11 @@ public class Main implements PlugIn
 					 {
 					 	Roi roi = (Roi) r.clone();
 					 	if(roi instanceof PointRoi){
-					 		IntelligentScissorsTwo scissors = new IntelligentScissorsTwo();
+					 		PathFinder scissors = new PathFinder();
 					 		scissors.setImage(win.getDisplayImage());
 					 		scissors.setUserSelectedPoints(roi.getContainedPoints());
 					 		PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
-					 		line.setStrokeWidth(2);
+					 		//line.setStrokeWidth(2);
 					 		line.setStrokeColor(r.getStrokeColor());
 					 		roi = line;
 						}
@@ -3209,30 +3224,27 @@ public class Main implements PlugIn
 	/**
 	 * Method called whenever user selected points change to update and draw the intelligent scissor lines.
 	 */
-	private void updateScissorPath(){
-
+	private void updateFasciaPath(){
 		final PointRoi roi = (PointRoi) displayImage.getRoi();
-		ArrayList<Roi> tempRoi = new ArrayList<Roi>();
 		IJ.log("User Selected Points : \n " + Arrays.toString(roi.getContainedPoints()));
+
+		ArrayList<Roi> tempRoi = new ArrayList<Roi>();
 
 		if(roi.getContainedPoints().length < 2){
 			//IJ.log("1. Less than 2 points, not possible to draw a line");
 			return;
 		}else{
-			//IJ.log("2. Creating Fascia path between selected points");
-			System.out.println("Roi Points : " + Arrays.toString(roi.getContainedPoints()));
-			//line.setStrokeWidth(1);
-			//IJ.log("Fascia path : " + line);
-			scissors.reset();
-			scissors.setUserSelectedPoints(roi.getContainedPoints());
-			PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
 
-			//PolygonRoi edge = (PolygonRoi) edgeScissors.getEdgeRoiWithAnchors();
-			//PolygonRoi oppositeEdge = (PolygonRoi) edgeScissors.getOppositeEdgeRoiWithAnchors();
-			//PolygonRoi edge = (PolygonRoi) edgeScissors.drawShortestPath(roi.getContainedPoints());
+			fasciaFinder.reset();
+			fasciaFinder.setUserSelectedPoints(roi.getContainedPoints());
+			PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
+			PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
+			PolygonRoi oppositeEdge = (PolygonRoi) fasciaFinder.getOppositeEdgeLinePathRoi();
+
 			tempRoi.add(line);
-			//tempRoi.add(edge);
-			//tempRoi.add(oppositeEdge);
+			tempRoi.add(edge);
+			tempRoi.add(oppositeEdge);
+
 			temporaryOverlay.setRoi(tempRoi);
 
 			//Line deleted when path updated
@@ -3324,14 +3336,15 @@ public class Main implements PlugIn
 							public void run() {
 								//Reset visual elements
 								displayImage.killRoi();
-								scissors.reset();
-								scissors.setImage(win.getDisplayImage());
+								fasciaFinder.reset();
 								temporaryOverlay.setRoi(null);
 								displayImage.updateAndDraw();
 
 								IJ.log("Starting Scissor Select");
 								IJ.setTool("multipoint");
-								scissors.setCentreLineActive(true);
+								fasciaFinder.setCentreLineActive(true);
+								fasciaFinder.setEdgeLineActive(true);
+
 								stopScissorSelectButton.setEnabled(true);
 
 							}
@@ -3339,7 +3352,8 @@ public class Main implements PlugIn
 					}
 					else if(e.getSource() == stopScissorSelectButton) {
 						//set scissor active to false
-						scissors.setCentreLineActive(false);
+						fasciaFinder.setCentreLineActive(false);
+						fasciaFinder.setEdgeLineActive(false);
 						stopScissorSelectButton.setEnabled(false);
 					}else if(e.getSource() == copyRoiButton){
 						showCopyDialog();
@@ -3360,11 +3374,12 @@ public class Main implements PlugIn
 							}
 							if(e.getSource() == addExampleButton[i])
 							{
-								if(scissors.isCentreLineActive() && temporaryOverlay.getRoi() != null){
+								//TODO Add checking to see if edges on or off.
+								if(fasciaFinder.isCentreLineActive() && temporaryOverlay.getRoi() != null){
 									addExamples(i);
-									//addExamplesFromScissor(i);
 									temporaryOverlay.setRoi(null);
-									updateScissorPath();
+									//TODO check if update to path necessary.
+									//updateFasciaPath();
 								}else if(temporaryOverlay.getRoi() != null){
 									//addExamplesFromScissor(i);
 									addExamples(i);

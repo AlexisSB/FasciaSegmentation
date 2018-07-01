@@ -19,6 +19,7 @@ import java.util.*;
  * Image cost in the graph is the intensity of the saturation channel.
  * @author Alexis Barltrop
  */
+@Deprecated
 public class IntelligentScissors {
 
     /** Saturation channel extracted from image*/

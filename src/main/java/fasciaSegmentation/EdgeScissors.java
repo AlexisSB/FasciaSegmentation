@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.PriorityQueue;
-
+@Deprecated
 public class EdgeScissors extends IntelligentScissors {
 
     private ImagePlus edgeCosts;

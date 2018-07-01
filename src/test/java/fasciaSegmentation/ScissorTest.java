@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -15,12 +16,12 @@ import static org.junit.Assert.assertTrue;
 
 public class ScissorTest {
 
-    private IntelligentScissorsTwo scissors;
+    private PathFinder scissors;
     ImagePlus testImage;
 
     @Before
     public void setUp(){
-        scissors = new IntelligentScissorsTwo();
+        scissors = new PathFinder();
         testImage = IJ.openImage("/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/2.bmp");
         assertTrue(testImage != null);
         scissors.setImage(testImage);
@@ -43,7 +44,13 @@ public class ScissorTest {
         ArrayList<Point> points = new ArrayList<Point>();
         points.add(new Point(10,10));
         points.add(new Point( 20,10));
-        scissors.setUserSelectedPoints(points);
+
+        Point[] pointArray = new Point[points.size()];
+        for (int i = 0; i <points.size(); i++){
+            pointArray[i] = points.get(i);
+        }
+        System.out.println(Arrays.toString(pointArray));
+        scissors.setUserSelectedPoints(pointArray);
 
         assertFalse(scissors.centreLinePath.isEmpty());
         assertFalse(scissors.edgeLinePath.isEmpty());
@@ -59,7 +66,7 @@ public class ScissorTest {
 
         for(int row = 0 ; row < testImage.getHeight(); row++){
             for( int col = 0; col < testImage.getWidth(); col++){
-                assertTrue("State not set to initial state" , scissors.pathSearchMatrix[row][col].state == IntelligentScissorsTwo.State.INITIAL);
+                assertTrue("State not set to initial state" , scissors.pathSearchMatrix[row][col].state == PathFinder.State.INITIAL);
                 assertTrue("Previous node not set to null" , scissors.pathSearchMatrix[row][col].previous == null);
                 assertTrue("Cost not set to double max" , scissors.pathSearchMatrix[row][col].cost == Double.MAX_VALUE);
                 assertTrue("X coordinate incorrect", scissors.pathSearchMatrix[row][col].x == col);
@@ -87,19 +94,63 @@ public class ScissorTest {
     @Test
     public void testShortestPath(){
         //Grayscale image with no saturation
-        ImagePlus image = IJ.openImage("/Users/alexis/Anatomy_Project/FasciaSegmentation/ImageJIntelligentScissors/StripTest.bmp");
+        ImagePlus image = IJ.openImage("/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/2.bmp");
 
-        IntelligentScissors myScissors = new IntelligentScissors();
+        assert(image != null);
+        PathFinder myScissors = new PathFinder();
         myScissors.setImage(image);
         Point[] path = new  Point[2];
-        Point one = new Point(10,60);
-        Point two = new Point(20,60);
+        Point one = new Point(10,235);
+        Point two = new Point(90,235);
         path[0] = one;
         path[1] = two;
-        PolygonRoi line = (PolygonRoi) myScissors.drawShortestPath(path);
+        myScissors.setUserSelectedPoints(path);
 
-        System.out.println("Roi line : \n" + line);
+        PolygonRoi line = (PolygonRoi) myScissors.getCentreLinePathRoi();
+        PolygonRoi edge = (PolygonRoi) myScissors.getEdgeLinePathRoi();
+        PolygonRoi oppositeEdge = (PolygonRoi) myScissors.getOppositeEdgeLinePathRoi();
+
+        System.out.println();
+        System.out.println("Centre line : \n" + line + "\n" + Arrays.toString(line.getContainedPoints()));
+        System.out.println("Edge line : \n" + edge + "\n" + Arrays.toString(edge.getContainedPoints()));
+        System.out.println("Opposite Edge line : \n" + oppositeEdge + "\n" + Arrays.toString(oppositeEdge.getContainedPoints()));
+
+
     }
+
+    @Test
+    public void testEmptyRoiBug(){
+        ImagePlus image = IJ.openImage("/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/2.bmp");
+
+        assert(image != null);
+        PathFinder myScissors = new PathFinder();
+        myScissors.setImage(image);
+        Point[] path = new  Point[5];
+        Point one = new Point(10,235);
+        Point two = new Point(27,235);
+        Point three = new Point(60,235);
+        Point four = new Point(114,235);
+        Point five = new Point(165,235);
+        path[0] = one;
+        path[1] = two;
+        path[2] = three;
+        path[3] = four;
+        path[4] = five;
+
+        myScissors.setUserSelectedPoints(path);
+
+        PolygonRoi line = (PolygonRoi) myScissors.getCentreLinePathRoi();
+        PolygonRoi edge = (PolygonRoi) myScissors.getEdgeLinePathRoi();
+        PolygonRoi oppositeEdge = (PolygonRoi) myScissors.getOppositeEdgeLinePathRoi();
+
+        System.out.println();
+        System.out.println("Centre line : \n" + line + "\n" + Arrays.toString(line.getContainedPoints()));
+        System.out.println("Edge line : \n" + edge + "\n" + Arrays.toString(edge.getContainedPoints()));
+        System.out.println("Opposite Edge line : \n" + oppositeEdge + "\n" + Arrays.toString(oppositeEdge.getContainedPoints()));
+
+
+    }
+
     @Test
     public void testBottomSelectBug() {
 
