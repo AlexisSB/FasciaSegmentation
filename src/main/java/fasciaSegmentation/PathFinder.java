@@ -66,15 +66,64 @@ public class PathFinder {
         centreLineCostMatrix = new ImagePlus();
         centreLineCostMatrix.setProcessor(temp.getProcessor());
 
-        StackWindow lineCost = new StackWindow(centreLineCostMatrix);
-        lineCost.pack();
+        //StackWindow lineCost = new StackWindow(centreLineCostMatrix);
+        //lineCost.pack();
 
         //Calculate Edge Matrix
-        edgeCostMatrix = getSobel(temp, 5);
-        StackWindow edgeCost = new StackWindow(edgeCostMatrix);
-        edgeCost.pack();
+        //edgeCostMatrix = getSobel(temp, 5);
+        //StackWindow edgeCost = new StackWindow(edgeCostMatrix);
+        //edgeCost.pack();
 
         //Insert Dog Here
+        //Testing DoG generation
+        ic.convertToGray8();
+        ImagePlus dog = getDoG(temp, 1,100);
+        StackWindow dogWindow = new StackWindow(dog);
+        dogWindow.pack();
+
+        ImagePlus dogEdge = getSobel(dog, 5);
+        StackWindow dogEdgeWindow = new StackWindow(dogEdge);
+        dogEdgeWindow.setName("Dog Edges");
+        dogEdgeWindow.pack();
+
+        edgeCostMatrix = dogEdge;
+
+    }
+
+    /**
+     * Computes difference of gaussian for the given image.
+     * Output is signed 32 bit image of the DoG.
+     * @param originalImage
+     * @param sigma1
+     * @param sigma2
+     * @return a 32 bit float image of the DoG.
+     */
+    public ImagePlus getDoG(final ImagePlus originalImage, final double sigma1, final double sigma2) {
+
+        final int width = originalImage.getWidth();
+        final int height = originalImage.getHeight();
+
+        GaussianBlur gs = new GaussianBlur();
+
+        ImageProcessor ip_1 = originalImage.getProcessor().duplicate();
+        //gs.blur(ip_1, sigma1);
+        gs.blurGaussian(ip_1, 0.4 * sigma1, 0.4 * sigma1, 0.0002);
+        ImageProcessor ip_2 = originalImage.getProcessor().duplicate();
+        //gs.blur(ip_2, sigma2);
+        gs.blurGaussian(ip_2, 0.4 * sigma2, 0.4 * sigma2, 0.0002);
+
+        ImageProcessor ip = new FloatProcessor(width, height);
+
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                float v1 = ip_1.getf(x, y);
+                float v2 = ip_2.getf(x, y);
+                ip.setf(x, y, v2 - v1);
+            }
+        }
+
+        ImagePlus result = new ImagePlus("DoG", ip);
+        return result;
     }
 
     /**
