@@ -849,6 +849,7 @@ public class Main implements PlugIn
 				{
 					if(r instanceof PointRoi){
 						//create shortest path and add the polygon roi instead
+						//FIXME Draw the line properly
 						fasciaFinder.setUserSelectedPoints(r.getContainedPoints());
 						PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
 						PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
@@ -1210,31 +1211,6 @@ public class Main implements PlugIn
 		record(ADD_TRACE, arg);
 	}
 
-	private void addExamplesFromScissor(int i){
-
-		//get selected pixels
-		assert(temporaryOverlay.getRoi() != null);
-		final Roi r = temporaryOverlay.getRoi().get(0);
-		if (null == r)
-			return;
-
-		// IJ.log("Adding trace to list " + i);
-
-		final int n = displayImage.getCurrentSlice();
-
-		displayImage.killRoi();
-		wekaSegmentation.addExample(i, r, n);
-		traceCounter[i]++;
-		win.drawExamples();
-		win.updateExampleLists();
-		// Record
-		String[] arg = new String[] {
-				Integer.toString(i),
-				Integer.toString(n)	};
-		record(ADD_TRACE, arg);
-	}
-
-
 	/**
 	 * Update the result image
 	 * 
@@ -1264,7 +1240,7 @@ public class Main implements PlugIn
 	 * Select a list and deselect the others
 	 * 
 	 * @param e item event (originated by a list)
-	 * @param i list index
+	 * @param i list index ( class index?)
 	 */
 	void listSelected(final ItemEvent e, final int i)
 	{
@@ -1275,7 +1251,6 @@ public class Main implements PlugIn
 		//Remove any temporary annotations
 		temporaryOverlay.setRoi(null);
 
-
 		for(int j = 0; j < wekaSegmentation.getNumOfClasses(); j++)
 		{
 			if (j == i)
@@ -1283,6 +1258,7 @@ public class Main implements PlugIn
 				final Roi newRoi = 
 					wekaSegmentation.getExamples(i, displayImage.getCurrentSlice())
 							.get(exampleList[i].getSelectedIndex());
+
 				// Set selected trace as current ROI
 				newRoi.setImage(displayImage);
 				displayImage.setRoi(newRoi);
@@ -1294,7 +1270,8 @@ public class Main implements PlugIn
 					temporaryOverlay.setColor(colors[i]);
 					//create polyline roi
 					IJ.log("creating line roi");
-					fasciaFinder.setUserSelectedPoints(newRoi.getContainedPoints());
+					updateFasciaPath();
+					/*fasciaFinder.setUserSelectedPoints(newRoi.getContainedPoints());
 					PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
 					PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
 					PolygonRoi oppositeEdge = (PolygonRoi) fasciaFinder.getOppositeEdgeLinePathRoi();
@@ -1307,19 +1284,19 @@ public class Main implements PlugIn
 
 					IJ.log("Changing temp roi");
 					temporaryOverlay.setRoi(tempRoi);
+					*/
 					//TODO Check if neccesary to change the path finder activation.
 					fasciaFinder.setCentreLineActive(true);
 					fasciaFinder.setEdgeLineActive(true);
 
+
 					//change to class colour.
 				}
-
 
 			}
 			else
 				exampleList[j].deselect(exampleList[j].getSelectedIndex());
 		}
-
 		displayImage.updateAndDraw();
 	}
 
@@ -3197,23 +3174,46 @@ public class Main implements PlugIn
 					 {
 					 	Roi roi = (Roi) r.clone();
 					 	if(roi instanceof PointRoi){
-					 		PathFinder scissors = new PathFinder();
-					 		scissors.setImage(win.getDisplayImage());
-					 		scissors.setUserSelectedPoints(roi.getContainedPoints());
-					 		PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
-					 		//line.setStrokeWidth(2);
-					 		line.setStrokeColor(r.getStrokeColor());
-					 		roi = line;
+					 		PathFinder fasciaFinder = new PathFinder();
+					 		fasciaFinder.setImage(win.getDisplayImage());
+					 		fasciaFinder.setUserSelectedPoints(roi.getContainedPoints());
+					 		PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
+							PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
+							PolygonRoi oppositeEdge = (PolygonRoi) fasciaFinder.getOppositeEdgeLinePathRoi();
+							PolygonRoi box = (PolygonRoi) fasciaFinder.getEdgeBoxRoi();
+							ArrayList<Roi> edgeRois = new ArrayList<Roi>();
+							edgeRois.add(line);
+							edgeRois.add(edge);
+							edgeRois.add(oppositeEdge);
+							edgeRois.add(box);
+
+					 		//TODO Draw edge lines on the output
+					 		//TODO Draw Box shape
+
+							for(Roi edgeRoi : edgeRois) {
+								//line.setStrokeWidth(2);
+								edgeRoi.setStrokeColor(r.getStrokeColor());
+								//roi = line;
+
+
+								final ImageProcessor ip = labelImage.getProcessor();
+								ip.setValue(j + 1);
+								if (edgeRoi.isLine()) {
+									ip.setLineWidth(Math.round(edgeRoi.getStrokeWidth()));
+									ip.draw(edgeRoi);
+								} else {
+									ip.fill(edgeRoi);
+								}
+							}
+						}else {
+							final ImageProcessor ip = labelImage.getProcessor();
+							ip.setValue(j + 1);
+							if (roi.isLine()) {
+								ip.setLineWidth(Math.round(roi.getStrokeWidth()));
+								ip.draw(roi);
+							} else
+								ip.fill(roi);
 						}
-						 final ImageProcessor ip = labelImage.getProcessor();
-						 ip.setValue( j+1 );
-						 if( roi.isLine() )
-						 {
-							 ip.setLineWidth( Math.round( roi.getStrokeWidth() ) );
-							 ip.draw( roi );
-						 }
-						 else
-							 ip.fill( roi );
 					 }
 				}
 			}
@@ -3373,20 +3373,17 @@ public class Main implements PlugIn
 							{
 								IJ.log("Delete action created");
 								deleteSelected(e);
+								updateFasciaPath();
 								break;
 							}
 							if(e.getSource() == addExampleButton[i])
 							{
 								//TODO Add checking to see if edges on or off.
-								if(fasciaFinder.isCentreLineActive() && temporaryOverlay.getRoi() != null){
+								if(temporaryOverlay.getRoi() != null){
 									addExamples(i);
 									temporaryOverlay.setRoi(null);
-									//TODO check if update to path necessary.
-									//updateFasciaPath();
-								}else if(temporaryOverlay.getRoi() != null){
-									//addExamplesFromScissor(i);
-									addExamples(i);
-								}else {
+									updateFasciaPath();
+								} else {
 									addExamples(i);
 								}
 								break;
@@ -3412,9 +3409,20 @@ public class Main implements PlugIn
 					//IJ.log("Trace Listener Active");
 					for(int i = 0; i < wekaSegmentation.getNumOfClasses(); i++)
 					{
-						if(e.getSource() == exampleList[i])
-							listSelected(e, i);
+						if(e.getSource() == exampleList[i]){
+							if(e.getStateChange() == ItemEvent.SELECTED){
 
+								listSelected(e, i);
+								stopScissorSelectButton.setEnabled(true);
+							}
+							if(e.getStateChange() == ItemEvent.DESELECTED) {
+								displayImage.killRoi();
+								updateFasciaPath();
+								stopScissorSelectButton.setEnabled(false);
+							}
+
+
+						}
 					}
 				}
 			});

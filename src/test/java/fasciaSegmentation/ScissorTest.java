@@ -90,6 +90,76 @@ public class ScissorTest {
 
     }
 
+    @Test
+    public void testAngleFinder(){
+        Point one = new Point(10,10);
+        Point two = new Point(10,40);
+        Point three = new Point(50,40);
+
+        double angle = scissors.calculateAngleCost(one,two,three);
+        System.out.println("Angle : " + angle);
+        assertEquals(angle, 90.0, 1);
+
+        angle = scissors.calculateAngleCost(two, one, three);
+        System.out.println("Angle : " + angle);
+        assertEquals(angle, 53.13, 1);
+
+        angle = scissors.calculateAngleCost(two, three, one);
+        System.out.println("Angle : " + angle);
+        assertEquals(angle, 36.87, 1);
+
+        one = new Point(0,0);
+        two = new Point(0,1732);
+        three = new Point(1000,1732);
+
+        angle = scissors.calculateAngleCost(one,two,three);
+        System.out.println("Angle : " + angle);
+        assertEquals(angle, 90.0, 1);
+
+        angle = scissors.calculateAngleCost(two, one, three);
+        System.out.println("Angle : " + angle);
+        assertEquals(angle, 30.0, 1);
+
+        angle = scissors.calculateAngleCost(two, three, one);
+        System.out.println("Angle : " + angle);
+        assertEquals(angle, 60.0, 1);
+    }
+
+    @Test
+    public void testGetEdgeBoxRoi(){
+
+        /*Point[] path = new Point[5];
+
+        path[0] = new Point (10,235);
+        path[1] = new Point (27,235);
+        path[2] = new Point (60,237);
+        path[3] = new Point (114,235);
+        path[4] = new Point (165,238);
+*/
+        Point[] path = new Point[2];
+
+        path[0] = new Point (10,235);
+        path[1] = new Point (20,235);
+
+        scissors.setUserSelectedPoints(path);
+        PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
+        PolygonRoi edge = (PolygonRoi) scissors.getEdgeLinePathRoi();
+        PolygonRoi oppositeEdge = (PolygonRoi) scissors.getOppositeEdgeLinePathRoi();
+        PolygonRoi box = (PolygonRoi) scissors.getEdgeBoxRoi();
+
+        System.out.println();
+        System.out.println("Line Roi : " + line );
+        System.out.println("Edge Roi : " + edge + " Size : " + edge.getContainedPoints().length);
+        System.out.println(Arrays.toString(edge.getContainedPoints()));
+        System.out.println();
+        System.out.println("Opposite Edge Roi : " + oppositeEdge + " Size : " + oppositeEdge.getContainedPoints().length );
+        System.out.println(Arrays.toString(oppositeEdge.getContainedPoints()));
+
+        System.out.println();
+        System.out.println("Box Roi : " + box  + " Size : " + box.getContainedPoints().length);
+        System.out.println(Arrays.toString(box.getContainedPoints()));
+
+    }
 
     @Test
     public void testShortestPath(){
