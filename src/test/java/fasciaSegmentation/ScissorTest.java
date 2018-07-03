@@ -138,8 +138,8 @@ public class ScissorTest {
 */
         Point[] path = new Point[2];
 
-        path[0] = new Point (10,235);
-        path[1] = new Point (20,235);
+        path[0] = new Point (103,235);
+        path[1] = new Point (117,234);
 
         scissors.setUserSelectedPoints(path);
         PolygonRoi line = (PolygonRoi) scissors.getCentreLinePathRoi();
@@ -149,6 +149,8 @@ public class ScissorTest {
 
         System.out.println();
         System.out.println("Line Roi : " + line );
+        System.out.println(Arrays.toString(line.getContainedPoints()));
+        System.out.println();
         System.out.println("Edge Roi : " + edge + " Size : " + edge.getContainedPoints().length);
         System.out.println(Arrays.toString(edge.getContainedPoints()));
         System.out.println();

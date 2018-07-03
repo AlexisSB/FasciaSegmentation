@@ -66,8 +66,8 @@ public class PathFinder {
         centreLineCostMatrix = new ImagePlus();
         centreLineCostMatrix.setProcessor(temp.getProcessor());
 
-        //StackWindow lineCost = new StackWindow(centreLineCostMatrix);
-        //lineCost.pack();
+        StackWindow lineCost = new StackWindow(centreLineCostMatrix);
+        lineCost.pack();
 
         //Calculate Edge Matrix
         //edgeCostMatrix = getSobel(temp, 5);
@@ -255,7 +255,13 @@ public class PathFinder {
 
     private void findEdgeLines(){
 
-        //Need to calculate the edge points next to each of the user Selected Points
+        //Edge lines based on normal lines
+        ArrayList<ArrayList<Point>> allEdgePoints = findEdgeUsingNormalPoints();
+        edgeLinePath.addAll(allEdgePoints.get(0));
+        oppositeEdgeLinePath.addAll(allEdgePoints.get(1));
+
+/*
+        //Edge lines based on shortest path
         ArrayList<ArrayList<Point>> edgePoint = findEdgeAnchorPoints();
         ArrayList<Point> edgeAnchorPoints = edgePoint.get(0);
         ArrayList<Point> oppositeEdgeAnchorPoints = edgePoint.get(1);
@@ -270,6 +276,7 @@ public class PathFinder {
 
         ArrayList<Point> oppositePath = findShortestPath(oppositeEdgeAnchorPoints, edgeCostMatrix);
         oppositeEdgeLinePath.addAll(oppositePath);
+*/
 
     }
 
@@ -308,13 +315,13 @@ public class PathFinder {
             Point direction = convertSlopeToDiscreteDirection(slope);
             //Move the point along that direction until it reaches a minimum value.
             Point newEdgePoint = new Point(p.x,p.y);
-            newEdgePoint = movePointToEdge(newEdgePoint, direction);
+            newEdgePoint = movePointToEdge(newEdgePoint, direction, 10);
             //Add the point to the edge anchors list
             edgeAnchorPoints.add(newEdgePoint);
 
             Point newOppositeEdgePoint = new Point(p.x,p.y);
             Point oppositeDirection = new Point((-1*direction.x), (-1*direction.y));
-            newOppositeEdgePoint = movePointToEdge(newOppositeEdgePoint, oppositeDirection);
+            newOppositeEdgePoint = movePointToEdge(newOppositeEdgePoint, oppositeDirection, 10);
             //Add the point to the edge anchors list
             oppositeEdgeAnchorPoints.add(newOppositeEdgePoint);
 
@@ -330,20 +337,105 @@ public class PathFinder {
         return output;
     }
 
-    private Point movePointToEdge(Point start, Point direction){
-        //Use greedy active contour movement.
+    private ArrayList<ArrayList<Point>> findEdgeUsingNormalPoints() {
+
+        ArrayList<Point> edgePoints = new ArrayList<Point>();
+        ArrayList<Point> oppositeEdgePoints = new ArrayList<Point>();
+
+        assert(centreLinePath.size() > 2);
+
+        //For each point that the user has selected
+        for(int pointIndex = 0 ; pointIndex < centreLinePath.size(); pointIndex++){
+
+            //Find that point in the middle path
+            //Select the points next to it
+            //Check if first and last points.
+            //Do quadratic interpolation of those points
+            //get the normal direction
+
+            double slope;
+            //System.out.println("Location : " + pointIndex + " Size : " + centreLinePath.size());
+
+            if( pointIndex != 0 && pointIndex != centreLinePath.size()-1){ // If point in between start and end of line
+                slope = findNormalDirection(centreLinePath.subList(pointIndex-1, pointIndex+2));
+            }else if(pointIndex == 0){ //If point at the start of line
+                continue;
+                //slope = findNormalDirection(centreLinePath.subList(0,3));
+            }else { // if the point at the end of the line
+                continue;
+                //assert (pointIndex == centreLinePath.size()-1);
+                //slope = findNormalDirection(centreLinePath.subList(pointIndex-2, pointIndex+1));
+            }
+
+            System.out.println("Slope : " + slope);
+            //convert it to a quadrant direction.
+            Point direction = convertSlopeToDiscreteDirection(slope);
+            System.out.println("Direction : " + direction);
+            System.out.println(" Mid point : " + centreLinePath.get(pointIndex));
+
+            //Move the point along that direction until it reaches a minimum value.
+            Point newEdgePoint = new Point(centreLinePath.get(pointIndex).x,centreLinePath.get(pointIndex).y);
+            newEdgePoint = movePointToEdge(newEdgePoint, direction, 10);
+            System.out.println(" New Edge Point : " + newEdgePoint);
+            //Add the point to the edge anchors list
+            edgePoints.add(newEdgePoint);
+
+            Point newOppositeEdgePoint = new Point(centreLinePath.get(pointIndex).x,centreLinePath.get(pointIndex).y);
+            Point oppositeDirection = new Point((-1*direction.x), (-1*direction.y));
+            System.out.println("Opposite Direction : " + oppositeDirection);
+            newOppositeEdgePoint = movePointToEdge(newOppositeEdgePoint, oppositeDirection, 10);
+            System.out.println(" Opposite Edge Point : " + newOppositeEdgePoint);
+            //Add the point to the edge anchors list
+            oppositeEdgePoints.add(newOppositeEdgePoint);
+
+        }
+
+        ArrayList<ArrayList<Point>> output = new ArrayList<ArrayList<Point>>();
+        output.add(edgePoints);
+        output.add(oppositeEdgePoints);
+
+        System.out.println("Edge Anchor Function output : " + output);
+        System.out.println();
+
+        return output;
+    }
+
+    private Point movePointToEdge(Point start, Point direction, int maxThickness){
+
+        //Scan ahead the max width number of pixels and pick the point with the lowest cost
+        double oldCost = 255 - edgeCostMatrix.getPixel(start.x, start.y)[0];
+        Point newPoint = new Point(start.x + direction.x, start.y + direction.y);
+        double newCost = 255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0];
+        Point minPoint = new Point(newPoint.x, newPoint.y);
+        for (int i = 0; i < maxThickness; i++ ){
+            newPoint = new Point(newPoint.x + direction.x, newPoint.y + direction.y);
+            newCost = 255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0];
+
+            if(newCost <= oldCost){
+                oldCost = newCost;
+                minPoint = new Point(newPoint.x, newPoint.y);
+            }
+        }
+
+        return minPoint;
+        /*//Use greedy active contour movement.
         double pointCost = 255 - edgeCostMatrix.getPixel(start.x, start.y)[0];
 
         Point newPoint = new Point(start.x + direction.x, start.y + direction.y);
 
         double newCost = 255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0];
-        while(newCost < pointCost ){
+        System.out.println("oldCost : " + pointCost);
+        System.out.println("newCost : " + newCost);
+
+
+        while(newCost <= pointCost ){
             pointCost = newCost;
             newPoint = new Point(newPoint.x + direction.x, newPoint.y + direction.y);
             newCost = 255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0];
+            System.out.println("newCost : " + newCost);
         }
 
-        return newPoint;
+        return newPoint;*/
     }
 
     private Point convertSlopeToDiscreteDirection(double slope) {
@@ -370,9 +462,19 @@ public class PathFinder {
 
     }
 
+    private void lineSmoothing(){
+
+        //For each point in the edge line
+        //if the point is larger than some distance from the previous point
+        //Replace it with average of some sort
+        //Try deleting first?
+        
+
+    }
+
     protected double findNormalDirection(List<Point> points) {
         //Current version allows only three points to determine function.
-        System.out.println("Interpolating points : " + points + "\n Size : " + points.size());
+        //System.out.println("Interpolating points : " + points + "\n Size : " + points.size());
 
         assert(points.size() == 3);
 
@@ -519,14 +621,37 @@ public class PathFinder {
             diagonalMultiplier = 1.41;
         }
 
+
         int distanceFromEnd = Math.abs(goal.y-two.y)+Math.abs(goal.x-goal.x);
-        int grayIntensity = costMatrix.getPixel(two.x, two.y)[0];
+        int intensityCost = 255 - costMatrix.getPixel(two.x, two.y)[0];
         int angleCost = 180 - (int)calculateAngleCost(one,two);
+        //double proximityCost = calculateProximityCost(two);
         //System.out.println("AngleCost : " + angleCost);
-        return ((255-grayIntensity) + distanceFromEnd + angleCost)*diagonalMultiplier;
+        return (intensityCost + distanceFromEnd + angleCost)*diagonalMultiplier;
 
     }
 
+    protected double calculateProximityCost(Point one){
+
+        if(centreLinePath == null || centreLinePath.isEmpty()){
+            return 0;
+        }else{
+            Point closestPoint;
+            int distance = 10000;
+            for(Point p : centreLinePath){
+                int tempDistance = Math.abs(one.x - p.x) + Math.abs(one.y - p.y);
+                if( tempDistance < distance){
+                    closestPoint = p;
+                    distance = tempDistance;
+                }
+            }
+
+            double cost = 4/ Math.pow(distance, 2);
+
+            return cost;
+        }
+
+    }
 
     protected double calculateAngleCost(Point pointA, Point pointB){
 

@@ -268,7 +268,7 @@ public class Main implements PlugIn
 		roiOverlay = new RoiListOverlay[WekaSegmentation.MAX_NUM_CLASSES];
 
 		temporaryOverlay = new RoiListOverlay();
-		temporaryOverlay.setColor(new Color(0, 255, 0));
+		temporaryOverlay.setColor(new Color(0, 0, 255));
 		
 		toggleOverlayButton = new JButton("Toggle Overlay");
 		toggleOverlayButton.setToolTipText("Set the overlay to visible or not");
@@ -395,7 +395,7 @@ public class Main implements PlugIn
 				((OverlayedImageCanvas)ic).addOverlay(roiOverlay[i]);
 			}
 
-			temporaryOverlay.setComposite( transparency050 );
+			//temporaryOverlay.setComposite( transparency050 );
 			((OverlayedImageCanvas)ic).addOverlay(temporaryOverlay);
 
 			// add result overlay
@@ -3241,8 +3241,11 @@ public class Main implements PlugIn
 			fasciaFinder.reset();
 			fasciaFinder.setUserSelectedPoints(roi.getContainedPoints());
 			PolygonRoi line = (PolygonRoi) fasciaFinder.getCentreLinePathRoi();
+			line.setStrokeColor(new Color(0,0,255));
 			PolygonRoi edge = (PolygonRoi) fasciaFinder.getEdgeLinePathRoi();
+			edge.setStrokeColor(new Color(255,0,0));
 			PolygonRoi oppositeEdge = (PolygonRoi) fasciaFinder.getOppositeEdgeLinePathRoi();
+			oppositeEdge.setStrokeColor(new Color(0,255,0));
 
 			tempRoi.add(line);
 			tempRoi.add(edge);
