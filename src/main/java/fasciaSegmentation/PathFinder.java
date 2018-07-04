@@ -66,8 +66,8 @@ public class PathFinder {
         centreLineCostMatrix = new ImagePlus();
         centreLineCostMatrix.setProcessor(temp.getProcessor());
 
-        StackWindow lineCost = new StackWindow(centreLineCostMatrix);
-        lineCost.pack();
+        //StackWindow lineCost = new StackWindow(centreLineCostMatrix);
+        //lineCost.pack();
 
         //Calculate Edge Matrix
         //edgeCostMatrix = getSobel(temp, 5);
@@ -78,13 +78,13 @@ public class PathFinder {
         //Testing DoG generation
         ic.convertToGray8();
         ImagePlus dog = getDoG(temp, 1,100);
-        StackWindow dogWindow = new StackWindow(dog);
-        dogWindow.pack();
+//        StackWindow dogWindow = new StackWindow(dog);
+//        dogWindow.pack();
 
         ImagePlus dogEdge = getSobel(dog, 5);
-        StackWindow dogEdgeWindow = new StackWindow(dogEdge);
-        dogEdgeWindow.setName("Dog Edges");
-        dogEdgeWindow.pack();
+//        StackWindow dogEdgeWindow = new StackWindow(dogEdge);
+//        dogEdgeWindow.setName("Dog Edges");
+//        dogEdgeWindow.pack();
 
         edgeCostMatrix = dogEdge;
 
@@ -167,6 +167,7 @@ public class PathFinder {
     }
 
     public Roi getCentreLinePathRoi() {
+        //lineSmoothing(centreLinePath);
         int[] xArray = new int[centreLinePath.size()];
         int[] yArray = new int[centreLinePath.size()];
         for (int i = 0; i < centreLinePath.size(); i++) {
@@ -174,10 +175,12 @@ public class PathFinder {
             yArray[i] = centreLinePath.get(i).y;
         }
         PolygonRoi pathRoi = new PolygonRoi(xArray, yArray, centreLinePath.size(), Roi.POLYLINE);
+        System.out.println("User Selected Points : " + userSelectedPoints);
         return pathRoi;
     }
 
     public Roi getEdgeLinePathRoi() {
+        System.out.println(edgeLinePath.size());
         int[] xArray = new int[edgeLinePath.size()];
         int[] yArray = new int[edgeLinePath.size()];
         for (int i = 0; i < edgeLinePath.size(); i++) {
@@ -186,10 +189,13 @@ public class PathFinder {
         }
 
         PolygonRoi pathRoi = new PolygonRoi(xArray, yArray, edgeLinePath.size(), Roi.POLYLINE);
+        System.out.println(" Edge : " + edgeLinePath);
+
         return pathRoi;
     }
 
     public Roi getOppositeEdgeLinePathRoi() {
+        System.out.println(oppositeEdgeLinePath.size());
         int[] xArray = new int[oppositeEdgeLinePath.size()];
         int[] yArray = new int[oppositeEdgeLinePath.size()];
         for (int i = 0; i < oppositeEdgeLinePath.size(); i++) {
@@ -198,8 +204,9 @@ public class PathFinder {
         }
 
         PolygonRoi pathRoi = new PolygonRoi(xArray, yArray, oppositeEdgeLinePath.size(), Roi.POLYLINE);
+        System.out.println("Opposite Edge : " + oppositeEdgeLinePath);
 
-        System.out.println("User Selected Points : " + userSelectedPoints);
+
         return pathRoi;
     }
 
@@ -260,6 +267,10 @@ public class PathFinder {
         edgeLinePath.addAll(allEdgePoints.get(0));
         oppositeEdgeLinePath.addAll(allEdgePoints.get(1));
 
+        System.out.println("\nStarting Smoothing");
+        edgeLinePath = (ArrayList<Point>) lineSmoothing(edgeLinePath);
+        oppositeEdgeLinePath = (ArrayList<Point>) lineSmoothing(oppositeEdgeLinePath);
+
 /*
         //Edge lines based on shortest path
         ArrayList<ArrayList<Point>> edgePoint = findEdgeAnchorPoints();
@@ -280,7 +291,7 @@ public class PathFinder {
 
     }
 
-    private ArrayList<ArrayList<Point>> findEdgeAnchorPoints() {
+    /*private ArrayList<ArrayList<Point>> findEdgeAnchorPoints() {
 
         ArrayList<Point> edgeAnchorPoints = new ArrayList<Point>();
         ArrayList<Point> oppositeEdgeAnchorPoints = new ArrayList<Point>();
@@ -335,7 +346,18 @@ public class PathFinder {
         System.out.println();
 
         return output;
+    }*/
+
+
+    public int getMaxThickness() {
+        return maxThickness;
     }
+
+    public void setMaxThickness(int maxThickness) {
+        this.maxThickness = maxThickness;
+    }
+
+    private int maxThickness = 10;
 
     private ArrayList<ArrayList<Point>> findEdgeUsingNormalPoints() {
 
@@ -343,9 +365,10 @@ public class PathFinder {
         ArrayList<Point> oppositeEdgePoints = new ArrayList<Point>();
 
         assert(centreLinePath.size() > 2);
-
+        Point previousEdge = null;
+        Point previousOppositeEdge = null;
         //For each point that the user has selected
-        for(int pointIndex = 0 ; pointIndex < centreLinePath.size(); pointIndex++){
+        for(int pointIndex = 1 ; pointIndex < centreLinePath.size()-1; pointIndex++){
 
             //Find that point in the middle path
             //Select the points next to it
@@ -356,8 +379,33 @@ public class PathFinder {
             double slope;
             //System.out.println("Location : " + pointIndex + " Size : " + centreLinePath.size());
 
-            if( pointIndex != 0 && pointIndex != centreLinePath.size()-1){ // If point in between start and end of line
-                slope = findNormalDirection(centreLinePath.subList(pointIndex-1, pointIndex+2));
+            // If point in between start and end of line
+            slope = findNormalDirection(centreLinePath.subList(pointIndex - 1, pointIndex + 2));
+            System.out.println("Normal Slope : " + slope);
+            //convert it to a quadrant direction.
+            Point direction = convertSlopeToDiscreteDirection(slope);
+            System.out.println("Direction : " + direction);
+            System.out.println(" Mid point : " + centreLinePath.get(pointIndex));
+
+            //Move the point along that direction until it reaches a minimum value.
+            Point newEdgePoint = new Point(centreLinePath.get(pointIndex).x, centreLinePath.get(pointIndex).y);
+
+            newEdgePoint = movePointToEdge(newEdgePoint, direction, previousEdge, maxThickness);
+            previousEdge = new Point(newEdgePoint.x, newEdgePoint.y);
+            System.out.println(" New Edge Point : " + newEdgePoint);
+            //Add the point to the edge anchors list
+            edgePoints.add(newEdgePoint);
+
+            Point newOppositeEdgePoint = new Point(centreLinePath.get(pointIndex).x, centreLinePath.get(pointIndex).y);
+            Point oppositeDirection = new Point((-1 * direction.x), (-1 * direction.y));
+            System.out.println("Opposite Direction : " + oppositeDirection);
+            newOppositeEdgePoint = movePointToEdge(newOppositeEdgePoint, oppositeDirection, previousOppositeEdge,  maxThickness);
+            previousOppositeEdge = new Point(newOppositeEdgePoint.x, newOppositeEdgePoint.y);
+            System.out.println(" Opposite Edge Point : " + newOppositeEdgePoint + "\n");
+            //Add the point to the edge anchors list
+            oppositeEdgePoints.add(newOppositeEdgePoint);
+
+            /*
             }else if(pointIndex == 0){ //If point at the start of line
                 continue;
                 //slope = findNormalDirection(centreLinePath.subList(0,3));
@@ -366,27 +414,8 @@ public class PathFinder {
                 //assert (pointIndex == centreLinePath.size()-1);
                 //slope = findNormalDirection(centreLinePath.subList(pointIndex-2, pointIndex+1));
             }
+*/
 
-            System.out.println("Slope : " + slope);
-            //convert it to a quadrant direction.
-            Point direction = convertSlopeToDiscreteDirection(slope);
-            System.out.println("Direction : " + direction);
-            System.out.println(" Mid point : " + centreLinePath.get(pointIndex));
-
-            //Move the point along that direction until it reaches a minimum value.
-            Point newEdgePoint = new Point(centreLinePath.get(pointIndex).x,centreLinePath.get(pointIndex).y);
-            newEdgePoint = movePointToEdge(newEdgePoint, direction, 10);
-            System.out.println(" New Edge Point : " + newEdgePoint);
-            //Add the point to the edge anchors list
-            edgePoints.add(newEdgePoint);
-
-            Point newOppositeEdgePoint = new Point(centreLinePath.get(pointIndex).x,centreLinePath.get(pointIndex).y);
-            Point oppositeDirection = new Point((-1*direction.x), (-1*direction.y));
-            System.out.println("Opposite Direction : " + oppositeDirection);
-            newOppositeEdgePoint = movePointToEdge(newOppositeEdgePoint, oppositeDirection, 10);
-            System.out.println(" Opposite Edge Point : " + newOppositeEdgePoint);
-            //Add the point to the edge anchors list
-            oppositeEdgePoints.add(newOppositeEdgePoint);
 
         }
 
@@ -400,16 +429,37 @@ public class PathFinder {
         return output;
     }
 
-    private Point movePointToEdge(Point start, Point direction, int maxThickness){
+    public double getDistanceCostMultiplier() {
+        return distanceCostMultiplier;
+    }
+
+    public void setDistanceCostMultiplier(double distanceCostMultiplier) {
+        this.distanceCostMultiplier = distanceCostMultiplier;
+    }
+
+    private double distanceCostMultiplier = 1.0;
+
+
+
+    private Point movePointToEdge(Point start, Point direction, Point previous,  int maxThickness){
 
         //Scan ahead the max width number of pixels and pick the point with the lowest cost
         double oldCost = 255 - edgeCostMatrix.getPixel(start.x, start.y)[0];
+
         Point newPoint = new Point(start.x + direction.x, start.y + direction.y);
-        double newCost = 255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0];
+        int distanceCost = 0;
+        if(previous != null) {
+            distanceCost = Math.abs(newPoint.x - previous.x) + Math.abs(newPoint.y-previous.y);
+        }
+        double newCost = (255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0]) + distanceCost;
         Point minPoint = new Point(newPoint.x, newPoint.y);
         for (int i = 0; i < maxThickness; i++ ){
             newPoint = new Point(newPoint.x + direction.x, newPoint.y + direction.y);
-            newCost = 255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0];
+            if(previous != null) {
+                distanceCost = Math.abs(newPoint.x - previous.x) + Math.abs(newPoint.y-previous.y);
+                distanceCost *= distanceCostMultiplier;
+            }
+            newCost = (255 - edgeCostMatrix.getPixel(newPoint.x, newPoint.y)[0]) + distanceCost;
 
             if(newCost <= oldCost){
                 oldCost = newCost;
@@ -438,6 +488,8 @@ public class PathFinder {
         return newPoint;*/
     }
 
+
+
     private Point convertSlopeToDiscreteDirection(double slope) {
         double angle = Math.atan(slope);
         angle = Math.toDegrees(angle);
@@ -462,14 +514,177 @@ public class PathFinder {
 
     }
 
-    private void lineSmoothing(){
+
+    public int getSmoothingThreshold() {
+        return smoothingThreshold;
+    }
+
+    private int smoothingThreshold = 30;
+    public void setSmoothingThreshold(int smoothingThreshold) {
+        this.smoothingThreshold = smoothingThreshold;
+    }
+
+    public int getPointStep() {
+        return pointStep;
+    }
+
+    public void setPointStep(int pointStep) {
+        this.pointStep = pointStep;
+    }
+
+    private int pointStep = 4;
+
+    protected List<Point> lineSmoothing(ArrayList<Point> edgePath){
+
+        //Approach 1
+        final int deltaXThreshold = 5;
+        final int deltaYThreshold = 5;
+        final int numberOfPointsToIncludeInMean = 10;
+
+        for(int i = 0; i < edgePath.size()-1; i++){
+            Point one = edgePath.get(i);
+            Point two = edgePath.get(i+1);
+            int deltaX = Math.abs(two.x - one.x);
+            int deltaY = Math.abs(two.y - one.y);
+
+            if(deltaX > deltaXThreshold || deltaY > deltaYThreshold){
+                System.out.println("Smoothing points : " + one + " and " + two);
+                //Check if point too close to ends of line
+                if(i > edgePath.size()-(numberOfPointsToIncludeInMean/2)){
+                    //Pick the last ten points
+                    //calculate mean
+                    int sumX = 0;
+                    int sumY = 0;
+                    for( int j = numberOfPointsToIncludeInMean; j > 0 ; j--){
+                        int size = edgePath.size();
+                        Point first = edgePath.get(size-j -2);
+                        Point second = edgePath.get(size-j-1);
+                        sumX += Math.abs(two.x - one.x);
+                        sumY += Math.abs(two.y - one.y);
+                    }
+                    int averageDeltaX = sumX/numberOfPointsToIncludeInMean;
+                    int averageDeltaY = sumY/numberOfPointsToIncludeInMean;
+                    Point newPoint = new Point(one.x + averageDeltaX, one.y + averageDeltaY);
+                    two = newPoint;
+                } else if(i < numberOfPointsToIncludeInMean){
+                    //Pick the first ten points
+                    //calculate mean
+                    int sumX = 0;
+                    int sumY = 0;
+                    for( int j = 0 ; j < numberOfPointsToIncludeInMean ; j++){
+                        Point first = edgePath.get(j);
+                        Point second = edgePath.get(j+1);
+                        sumX += Math.abs(two.x - one.x);
+                        sumY += Math.abs(two.y - one.y);
+                    }
+                    int averageDeltaX = sumX/numberOfPointsToIncludeInMean;
+                    int averageDeltaY = sumY/numberOfPointsToIncludeInMean;
+                    Point newPoint = new Point(one.x + averageDeltaX, one.y + averageDeltaY);
+                    two = newPoint;
+
+                }else {
+                    //calculate mean
+                    int sumX = 0;
+                    int sumY = 0;
+                    for (int j = -numberOfPointsToIncludeInMean / 2; j < numberOfPointsToIncludeInMean / 2; j++) {
+                        Point first = edgePath.get(i + j);
+                        Point second = edgePath.get(i + j + 1);
+                        sumX += Math.abs(two.x - one.x);
+                        sumY += Math.abs(two.y - one.y);
+                    }
+                    int averageDeltaX = sumX / numberOfPointsToIncludeInMean;
+                    int averageDeltaY = sumY / numberOfPointsToIncludeInMean;
+                    Point newPoint = new Point(one.x + averageDeltaX, one.y + averageDeltaY);
+                    two = newPoint;
+                }
+
+            }
+
+
+        }
+
+        //Approach 2
+        //If edge cost of point different to average of last few points then replace with average step.
+        /*for(int i = 0; i < edgePath.size()-1; i++) {
+            Point one = edgePath.get(i);
+            Point two = edgePath.get(i + 1);
+            int deltaX = Math.abs(two.x - one.x);
+            int deltaY = Math.abs(two.y - one.y);
+            int costOne = edgeCostMatrix.getPixel(one.x, one.y)[0];
+            int costTwo = edgeCostMatrix.getPixel(two.x, two.y)[0];
+            int deltaCost = Math.abs(costTwo-costOne);
+            if(deltaCost > smoothingThreshold || ){
+                edgePath.remove(i+1);
+                i--;
+            }
+
+        }*/
+
+        //Approach 3
+        //Check the angle every 4 points, if the angle to big then reject the point.
+
+        System.out.println("Path Size : " + edgePath.size());
+
+        /*for(int i = 0; i < edgePath.size()-pointStep; i++) {
+            Point one = edgePath.get(i);
+            Point two = edgePath.get(i + pointStep/2);
+            Point three = edgePath.get(i + pointStep);
+//            System.out.println("Point one : " +one);
+//            System.out.println("Point two : " + two);
+//            System.out.println("Point three : " + three);
+            Point vectorOne = new Point(two.x-one.x, two.y-one.y);
+//            System.out.println("Vector One : " + vectorOne);
+
+            Point vectorTwo = new Point( three.x - two.x, three.y - two.y);
+//            System.out.println("Vector two : " + vectorTwo);
+
+            double lengthOne = Point2D.distance(one.x, one.y, two.x, two.y);
+            double lengthTwo = Point2D.distance(two.x, two.y, three.x, three.y);
+//            System.out.println("Length One : " + lengthOne + " Length Two : " + lengthTwo);
+
+            double angle = ((vectorOne.x*vectorTwo.x)+(vectorOne.y*vectorTwo.y))/(lengthOne*lengthTwo);
+            angle = Math.acos(angle);
+            angle = Math.toDegrees(angle);
+//            System.out.println("Angle : " + angle);
+
+            if(angle > smoothingThreshold){
+                //Delete Point
+                edgePath.remove(i+pointStep);
+                i--;
+                *//*System.out.println("Angle : " + angle);
+                System.out.print("Adjusting point : " + three);
+                //Replace Point
+                //for points before it || until is zero
+                int sumX = 0;
+                int sumY = 0;
+                for(int j = 0 ;j < pointStep;j++){
+                    Point p = edgePath.get(i+j);
+                    Point q = edgePath.get(i+j+1);
+                    sumX += (q.x-p.x);
+                    sumY += (q.y-p.y);
+                }
+                int averageDeltaX = sumX / pointStep-1;
+                int averageDeltaY = sumY / pointStep-1;
+                //System.out.println("Deltas : " + averageDeltaX + " " + averageDeltaY);
+                Point newPoint = new Point(two.x + averageDeltaX, two.y + averageDeltaY);
+                edgePath.set(i+pointStep, newPoint);
+                System.out.println(" ---> " + edgePath.get(i+pointStep));
+                //Calculate average change in x and y
+                //Apply to the last point*//*
+            }*/
+
+        //}
+        System.out.println("Path Size : " + edgePath.size());
+        //Keep track of the change in x and y between points
+        //If its larger than some threshold move the point.
+
 
         //For each point in the edge line
         //if the point is larger than some distance from the previous point
         //Replace it with average of some sort
         //Try deleting first?
-        
 
+        return edgePath;
     }
 
     protected double findNormalDirection(List<Point> points) {
@@ -496,6 +711,10 @@ public class PathFinder {
         params = curveFitter.getParams();
 
         double slope = params[1] + 2 * params[2] * xData[1];
+        System.out.println("Tangent slope : " + slope);
+        //Multiply slope by -1 because of different coordinate system in the picture to the curve fitter
+        slope *= 1;
+        System.out.println("Flipped slope : " + slope);
         if(slope == 0){
             return 100000000; // large number for vertical
         }else {

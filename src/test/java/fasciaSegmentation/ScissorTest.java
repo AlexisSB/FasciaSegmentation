@@ -148,18 +148,66 @@ public class ScissorTest {
         PolygonRoi box = (PolygonRoi) scissors.getEdgeBoxRoi();
 
         System.out.println();
-        System.out.println("Line Roi : " + line );
+        System.out.println("Line Roi : " + line  + " Size : " + line.getNCoordinates());
         System.out.println(Arrays.toString(line.getContainedPoints()));
         System.out.println();
-        System.out.println("Edge Roi : " + edge + " Size : " + edge.getContainedPoints().length);
+        System.out.println("Edge Roi : " + edge + " Size : " + edge.getNCoordinates());
         System.out.println(Arrays.toString(edge.getContainedPoints()));
         System.out.println();
-        System.out.println("Opposite Edge Roi : " + oppositeEdge + " Size : " + oppositeEdge.getContainedPoints().length );
+        System.out.println("Opposite Edge Roi : " + oppositeEdge + " Size : " + oppositeEdge.getNCoordinates() );
         System.out.println(Arrays.toString(oppositeEdge.getContainedPoints()));
 
         System.out.println();
         System.out.println("Box Roi : " + box  + " Size : " + box.getContainedPoints().length);
         System.out.println(Arrays.toString(box.getContainedPoints()));
+
+    }
+
+    @Test
+    public void testLineSmoothing(){
+
+        ArrayList<Point> path = new ArrayList<Point>();
+
+        for(int i = 10 ; i < 90 ; i++){
+            path.add(new Point( i, 235));
+        }
+
+        scissors.lineSmoothing(path);
+
+
+    }
+
+    @Test
+    public void testFasciaStrand(){
+        ImagePlus image = IJ.openImage("/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/SingleFasciaStrand.bmp");
+        assert(image != null);
+        PathFinder myScissors = new PathFinder();
+        myScissors.setImage(image);
+        Point[] path = new Point[2];
+
+        path[0] = new Point (7,17);
+        path[1] = new Point (57,13);
+        myScissors.setUserSelectedPoints(path);
+        PolygonRoi line = (PolygonRoi) myScissors.getCentreLinePathRoi();
+        PolygonRoi edge = (PolygonRoi) myScissors.getEdgeLinePathRoi();
+        PolygonRoi oppositeEdge = (PolygonRoi) myScissors.getOppositeEdgeLinePathRoi();
+        PolygonRoi box = (PolygonRoi) myScissors.getEdgeBoxRoi();
+        System.out.println();
+        System.out.println("Line Roi : " + line  + " Size : " + line.getNCoordinates());
+        System.out.println(Arrays.toString(line.getContainedPoints()));
+        System.out.println();
+        System.out.println("Edge Roi : " + edge + " Size : " + edge.getNCoordinates());
+        System.out.println(Arrays.toString(edge.getContainedPoints()));
+        System.out.println();
+        System.out.println("Opposite Edge Roi : " + oppositeEdge + " Size : " + oppositeEdge.getNCoordinates() );
+        System.out.println(Arrays.toString(oppositeEdge.getContainedPoints()));
+
+        System.out.println();
+        System.out.println("Box Roi : " + box  + " Size : " + box.getContainedPoints().length);
+        System.out.println(Arrays.toString(box.getContainedPoints()));
+        image.setRoi(oppositeEdge);
+        image = image.flatten();
+        IJ.save(image, "/Users/alexis/Anatomy_Project/FasciaSegmentation/src/test/testpics/testroi.bmp");
 
     }
 

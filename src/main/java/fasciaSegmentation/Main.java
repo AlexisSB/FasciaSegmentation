@@ -2128,6 +2128,7 @@ public class Main implements PlugIn
 		gd.addNumericField("Minimum sigma:", wekaSegmentation.getMinimumSigma(), 1);
 		gd.addNumericField("Maximum sigma:", wekaSegmentation.getMaximumSigma(), 1);
 
+
 		if(wekaSegmentation.getLoadedTrainingData() != null)
 		{
 			final int nNumericFields = isProcessing3D ? 2 : 4;
@@ -2164,6 +2165,12 @@ public class Main implements PlugIn
 		gd.addButton("Save feature stack", new SaveFeatureStackButtonListener(
 				"Select location to save feature stack", wekaSegmentation ) );
 		gd.addSlider("Result overlay opacity", 0, 100, win.overlayOpacity);
+		gd.addNumericField("Smoothing Threshold", fasciaFinder.getSmoothingThreshold(), 0);
+		gd.addNumericField("Max Fascia Thickness", fasciaFinder.getMaxThickness(), 0);
+		gd.addNumericField("Distance Multiplier", fasciaFinder.getDistanceCostMultiplier(), 1);
+		gd.addNumericField("Angle Step", fasciaFinder.getPointStep(), 0);
+
+
 		gd.addHelp("http://fiji.sc/Trainable_Weka_Segmentation");
 
 		gd.showDialog();
@@ -2324,6 +2331,17 @@ public class Main implements PlugIn
 				displayImage.updateAndDraw();
 		}
 
+		final int smoothingThreshold = (int) gd.getNextNumber();
+		fasciaFinder.setSmoothingThreshold(smoothingThreshold);
+
+		final int maxThickenss = (int) gd.getNextNumber();
+		fasciaFinder.setMaxThickness(maxThickenss);
+
+		final double distanceMultiplier = (double) gd.getNextNumber();
+		fasciaFinder.setDistanceCostMultiplier(distanceMultiplier);
+
+		final int angleStep = (int) gd.getNextNumber();
+		fasciaFinder.setPointStep(angleStep);
 
 		// If there is a change in the class names,
 		// the data set (instances) must be updated.
