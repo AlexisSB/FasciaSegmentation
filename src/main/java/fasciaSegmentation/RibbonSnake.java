@@ -8,6 +8,7 @@ import java.util.ArrayList;
  *  This class draws the outer edges of the fascia to find the thickness of important structures
  *  Use active contours approach to find and follow the edge.
  */
+@Deprecated
 public class RibbonSnake {
 
     ArrayList<Point> left = null;

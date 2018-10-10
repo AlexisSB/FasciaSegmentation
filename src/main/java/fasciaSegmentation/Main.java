@@ -18,6 +18,9 @@ import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.StackConverter;
 
+import com.google.gson.Gson;
+import com.google.gson.*;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -33,7 +36,6 @@ import java.util.concurrent.Executors;
 import java.util.zip.GZIPOutputStream;
 
 import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -136,7 +138,7 @@ public class Main implements PlugIn
 	/** settings button */
 	private JButton settingsButton = null;
 	/** Weka button */
-	private JButton wekaButton = null;
+	//private JButton wekaButton = null;
 	/** create new class button */
 	private JButton addClassButton = null;
 
@@ -187,7 +189,7 @@ public class Main implements PlugIn
 	/** name of the macro method to create a new class */
 	public static final String CREATE_CLASS = "createNewClass";
 	/** name of the macro method to launch the Weka Chooser */
-	public static final String LAUNCH_WEKA = "launchWeka";
+	//public static final String LAUNCH_WEKA = "launchWeka";
 	/** name of the macro method to enable/disable a feature */
 	public static final String SET_FEATURE = "setFeature";
 	/** name of the macro method to set the membrane thickness */
@@ -301,11 +303,11 @@ public class Main implements PlugIn
 		saveClassifierButton.setToolTipText("Save current classifier into a file");
 		saveClassifierButton.setEnabled(false);
 
-		loadDataButton = new JButton ("Load data");
-		loadDataButton.setToolTipText("Load previous segmentation from an ARFF file");
+		loadDataButton = new JButton ("Load Point data");
+		loadDataButton.setToolTipText("Load user selected points");
 
-		saveDataButton = new JButton ("Save data");
-		saveDataButton.setToolTipText("Save current segmentation into an ARFF file");
+		saveDataButton = new JButton ("Save Point Data");
+		saveDataButton.setToolTipText("Save current selected Points");
 		saveDataButton.setEnabled(false);
 
 		addClassButton = new JButton ("Create new class");
@@ -315,9 +317,9 @@ public class Main implements PlugIn
 		settingsButton.setToolTipText("Display settings dialog");
 
 		/** The Weka icon image */
-		ImageIcon icon = new ImageIcon(Main.class.getResource("/trainableSegmentation/images/weka.png"));
-		wekaButton = new JButton( icon );
-		wekaButton.setToolTipText("Launch Weka GUI chooser");
+		//ImageIcon icon = new ImageIcon(Main.class.getResource("/trainableSegmentation/images/weka.png"));
+		//wekaButton = new JButton( icon );
+		//wekaButton.setToolTipText("Launch Weka GUI chooser");
 
 		showColorOverlay = false;
 	}
@@ -328,7 +330,6 @@ public class Main implements PlugIn
 
 
 	private ButtonListener listener = new ButtonListener();
-
 	private TraceListener traceListener = new TraceListener();
 	private MyRoiListener roiListener = new MyRoiListener();
 
@@ -354,8 +355,9 @@ public class Main implements PlugIn
 		
 		/** buttons panel (left side of the GUI) */
 		private JPanel buttonsPanel = new JPanel();
-		/** training panel (included in the left side of the GUI) */
-		private JPanel trainingJPanel = new JPanel();
+		/** fascia select panel (included in the left side of the GUI) */
+		private JPanel fasciaSelectPanel = new JPanel();
+		private JPanel saveLoadPanel = new JPanel();
 		/** options panel (included in the left side of the GUI) */
 		private JPanel optionsJPanel = new JPanel();
 		/** main GUI panel (containing the buttons panel on the left,
@@ -455,7 +457,7 @@ public class Main implements PlugIn
 			saveDataButton.addActionListener(listener);
 			addClassButton.addActionListener(listener);
 			settingsButton.addActionListener(listener);
-			wekaButton.addActionListener(listener);
+			//wekaButton.addActionListener(listener);
 
 
 			// Add mouse listener for interactive updating of shortest path
@@ -639,30 +641,52 @@ public class Main implements PlugIn
 			scrollPanel.setHorizontalScrollBarPolicy( JScrollPane.HORIZONTAL_SCROLLBAR_NEVER );
 			scrollPanel.setMinimumSize( labelsJPanel.getPreferredSize() );
 			
-			
-			// Training panel (left side of the GUI)
-			trainingJPanel.setBorder(BorderFactory.createTitledBorder("Training"));
-			GridBagLayout trainingLayout = new GridBagLayout();
-			GridBagConstraints trainingConstraints = new GridBagConstraints();
-			trainingConstraints.anchor = GridBagConstraints.NORTHWEST;
-			trainingConstraints.fill = GridBagConstraints.HORIZONTAL;
-			trainingConstraints.gridwidth = 1;
-			trainingConstraints.gridheight = 1;
-			trainingConstraints.gridx = 0;
-			trainingConstraints.gridy = 0;
-			trainingConstraints.insets = new Insets(5, 5, 6, 6);
-			trainingJPanel.setLayout(trainingLayout);
+			//Panels for left side of GUI
 
-			trainingJPanel.add(toggleOverlayButton, trainingConstraints);
-			trainingConstraints.gridy++;
-			trainingJPanel.add(resetOverlayButton, trainingConstraints);
-			trainingConstraints.gridy++;
-			trainingJPanel.add(saveOverlayButton, trainingConstraints);
-			trainingConstraints.gridy++;
-			trainingJPanel.add(startScissorSelectButton, trainingConstraints);
-			trainingConstraints.gridy++;
-			trainingJPanel.add(stopScissorSelectButton, trainingConstraints);
-			trainingConstraints.gridy++;
+			// Fascia Select panel (left side of the GUI)
+			fasciaSelectPanel.setBorder(BorderFactory.createTitledBorder("Fascia Select"));
+			GridBagLayout fasciaSelectLayout = new GridBagLayout();
+			GridBagConstraints fasciaSelectConstraints = new GridBagConstraints();
+			fasciaSelectConstraints.anchor = GridBagConstraints.NORTHWEST;
+			fasciaSelectConstraints.fill = GridBagConstraints.HORIZONTAL;
+			fasciaSelectConstraints.gridwidth = 1;
+			fasciaSelectConstraints.gridheight = 1;
+			fasciaSelectConstraints.gridx = 0;
+			fasciaSelectConstraints.gridy = 0;
+			fasciaSelectConstraints.insets = new Insets(5, 5, 6, 6);
+			fasciaSelectPanel.setLayout(fasciaSelectLayout);
+
+			fasciaSelectPanel.add(startScissorSelectButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(stopScissorSelectButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(toggleOverlayButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(resetOverlayButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(copyRoiButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+
+
+			//Save/Load Panel
+			saveLoadPanel.setBorder(BorderFactory.createTitledBorder("Save/Load"));
+			GridBagLayout saveLoadLayout = new GridBagLayout();
+			GridBagConstraints saveLoadConstraints = new GridBagConstraints();
+			saveLoadConstraints.anchor = GridBagConstraints.NORTHWEST;
+			saveLoadConstraints.fill = GridBagConstraints.HORIZONTAL;
+			saveLoadConstraints.gridwidth = 1;
+			saveLoadConstraints.gridheight = 1;
+			saveLoadConstraints.gridx = 0;
+			saveLoadConstraints.gridy = 0;
+			saveLoadConstraints.insets = new Insets(5, 5, 6, 6);
+			saveLoadPanel.setLayout(saveLoadLayout);
+
+			saveLoadPanel.add(saveDataButton, saveLoadConstraints);
+			saveLoadConstraints.gridy++;
+			saveLoadPanel.add(loadDataButton, saveLoadConstraints);
+			saveLoadConstraints.gridy++;
+			saveLoadPanel.add(saveOverlayButton, saveLoadConstraints);
+			saveLoadConstraints.gridy++;
 
 			// Options panel
 			optionsJPanel.setBorder(BorderFactory.createTitledBorder("Options"));
@@ -677,22 +701,12 @@ public class Main implements PlugIn
 			optionsConstraints.insets = new Insets(5, 5, 6, 6);
 			optionsJPanel.setLayout(optionsLayout);
 
-			optionsJPanel.add(copyRoiButton, optionsConstraints);
-			optionsConstraints.gridy++;
-			optionsJPanel.add(loadClassifierButton, optionsConstraints);
-			optionsConstraints.gridy++;
-			optionsJPanel.add(saveClassifierButton, optionsConstraints);
-			optionsConstraints.gridy++;
-			optionsJPanel.add(loadDataButton, optionsConstraints);
-			optionsConstraints.gridy++;
-			optionsJPanel.add(saveDataButton, optionsConstraints);
-			optionsConstraints.gridy++;
 			optionsJPanel.add(addClassButton, optionsConstraints);
 			optionsConstraints.gridy++;
 			optionsJPanel.add(settingsButton, optionsConstraints);
 			optionsConstraints.gridy++;
-			optionsJPanel.add(wekaButton, optionsConstraints);
-			optionsConstraints.gridy++;
+			//optionsJPanel.add(wekaButton, optionsConstraints);
+			//optionsConstraints.gridy++;
 
 			// Buttons panel (including training and options)
 			GridBagLayout buttonsLayout = new GridBagLayout();
@@ -704,7 +718,9 @@ public class Main implements PlugIn
 			buttonsConstraints.gridheight = 1;
 			buttonsConstraints.gridx = 0;
 			buttonsConstraints.gridy = 0;
-			buttonsPanel.add(trainingJPanel, buttonsConstraints);
+			buttonsPanel.add(fasciaSelectPanel, buttonsConstraints);
+			buttonsConstraints.gridy++;
+			buttonsPanel.add(saveLoadPanel,buttonsConstraints);
 			buttonsConstraints.gridy++;
 			buttonsPanel.add(optionsJPanel, buttonsConstraints);
 			buttonsConstraints.gridy++;
@@ -797,7 +813,7 @@ public class Main implements PlugIn
 					saveDataButton.removeActionListener(listener);
 					addClassButton.removeActionListener(listener);
 					settingsButton.removeActionListener(listener);
-					wekaButton.removeActionListener(listener);
+					//wekaButton.removeActionListener(listener);
 
 					// Set number of classes back to 2
 					wekaSegmentation.setNumOfClasses(2);					
@@ -991,7 +1007,7 @@ public class Main implements PlugIn
 			saveDataButton.setEnabled(s);
 			addClassButton.setEnabled(s);
 			settingsButton.setEnabled(s);
-			wekaButton.setEnabled(s);
+			//wekaButton.setEnabled(s);
 			for(int i = 0 ; i < wekaSegmentation.getNumOfClasses(); i++)
 			{
 				exampleList[i].setEnabled(s);
@@ -1034,7 +1050,7 @@ public class Main implements PlugIn
 
 				addClassButton.setEnabled(wekaSegmentation.getNumOfClasses() < WekaSegmentation.MAX_NUM_CLASSES);
 				settingsButton.setEnabled(true);
-				wekaButton.setEnabled(true);
+				//wekaButton.setEnabled(true);
 
 				// Check if there are samples in any slice
 				boolean examplesEmpty = true;
@@ -1946,7 +1962,7 @@ public class Main implements PlugIn
 	/**
 	 * Load previously saved data
 	 */
-	public void loadTrainingData()
+	public void loadUserSelectedData()
 	{
 		OpenDialog od = new OpenDialog("Choose data file", OpenDialog.getLastDirectory(), "data.arff");
 		if (od.getFileName()==null)
@@ -1965,11 +1981,19 @@ public class Main implements PlugIn
 	/**
 	 * Save training model into a file
 	 */
-	public void saveTrainingData()
+	public void saveUserSelectedData()
 	{
 		SaveDialog sd = new SaveDialog("Choose save file", "data",".arff");
 		if (sd.getFileName()==null)
 			return;
+
+		File outputFile = new File(sd.getFileName());
+		//Need data point class to use json serialization
+
+		Gson gson;
+
+
+
 
 		// Macro recording
 		String[] arg = new String[] { sd.getDirectory() + sd.getFileName() };
@@ -2369,7 +2393,7 @@ public class Main implements PlugIn
 	// use reflection to insert classifiers, since there is no other method to do that...
 	static {
 		try {
-			IJ.showStatus("Loading Weka properties...");
+			IJ.showStatus("Loading Properties...");
 			IJ.log("Loading Weka properties...");
 			Field field = GenericObjectEditor.class.getDeclaredField("EDITOR_PROPERTIES");
 			field.setAccessible(true);
@@ -3383,6 +3407,19 @@ public class Main implements PlugIn
 						showCopyDialog();
 					}else if(e.getSource() == addClassButton){
 						addNewClass();
+					}
+					else if(e.getSource() == loadDataButton){
+						//oadUserSelectedData();
+						//Launch load dialog
+						//Enable save button
+						//Insert the number of classes that there are.
+
+					}
+					else if (e.getSource() == saveDataButton){
+						//saveUserSelectedData();
+						//Launch save dialog
+						//Write data to file
+						//Maybe write as a java script file and use gson?
 					}
 					else if(e.getSource() == settingsButton){
 						showSettingsDialog();
