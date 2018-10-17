@@ -39,7 +39,7 @@ public class BrushFasciaFilter {
 
     /**
      * Takes in a list of slected roi points and returns the ones that are most likeyl due to the Fascia.
-     * @param selectedPoints
+     * @param inputRoi
      * @return
      */
     public Roi filterPoints(Roi inputRoi){
