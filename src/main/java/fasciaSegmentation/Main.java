@@ -142,6 +142,13 @@ public class Main implements PlugIn
 	/** create new class button */
 	private JButton addClassButton = null;
 
+	/** Start Brush Selection for Fascia */
+	private JButton startBrushSelectButton = null;
+	/** Stop Brush Selection for Fascia */
+	private JButton stopBrushSelectButton = null;
+	/** Apply filter to select fascia button */
+	private JButton applyBrushFilterButton = null;
+
 	/** array of roi list overlays to paint the transparent rois of each class */
 	private RoiListOverlay [] roiOverlay = null;
 
@@ -222,6 +229,9 @@ public class Main implements PlugIn
 
 	private PathFinder fasciaFinder = null;
 
+	private BrushFasciaFilter brushFasciaFilter = null;
+
+
 	/**
 	 * Basic constructor for graphical user interface use
 	 */
@@ -291,6 +301,18 @@ public class Main implements PlugIn
 		stopScissorSelectButton = new JButton("Stop Scissor Select");
 		stopScissorSelectButton.setToolTipText("Stop recording clicks for the scissor tool");
 		stopScissorSelectButton.setEnabled(false);
+
+		startBrushSelectButton = new JButton("Start Brush Select");
+		startBrushSelectButton.setToolTipText("Start brush tool for fascia selection");
+		startBrushSelectButton.setEnabled(true);
+
+		stopBrushSelectButton = new JButton("Stop Brush Select");
+		stopBrushSelectButton.setToolTipText("Stop brush tool fascia select");
+		stopBrushSelectButton.setEnabled(false);
+
+		applyBrushFilterButton = new JButton( "Apply Brush Filter");
+		applyBrushFilterButton.setToolTipText("Apply filter to select Fascia");
+		applyBrushFilterButton.setEnabled(false);
 		
 		copyRoiButton = new JButton ("Copy Roi");
 		copyRoiButton.setToolTipText("Copy Roi from current slice");
@@ -450,6 +472,9 @@ public class Main implements PlugIn
 			saveOverlayButton.addActionListener(listener);
 			startScissorSelectButton.addActionListener(listener);
 			stopScissorSelectButton.addActionListener(listener);
+			startBrushSelectButton.addActionListener(listener);
+			stopBrushSelectButton.addActionListener(listener);
+			applyBrushFilterButton.addActionListener(listener);
 			copyRoiButton.addActionListener(listener);
 			loadClassifierButton.addActionListener(listener);
 			saveClassifierButton.addActionListener(listener);
@@ -660,6 +685,12 @@ public class Main implements PlugIn
 			fasciaSelectConstraints.gridy++;
 			fasciaSelectPanel.add(stopScissorSelectButton, fasciaSelectConstraints);
 			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(startBrushSelectButton,fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(applyBrushFilterButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
+			fasciaSelectPanel.add(stopBrushSelectButton, fasciaSelectConstraints);
+			fasciaSelectConstraints.gridy++;
 			fasciaSelectPanel.add(toggleOverlayButton, fasciaSelectConstraints);
 			fasciaSelectConstraints.gridy++;
 			fasciaSelectPanel.add(resetOverlayButton, fasciaSelectConstraints);
@@ -806,6 +837,9 @@ public class Main implements PlugIn
 					saveOverlayButton.removeActionListener(listener);
 					startScissorSelectButton.removeActionListener(listener);
 					stopScissorSelectButton.removeActionListener(listener);
+					startBrushSelectButton.removeActionListener(listener);
+					applyBrushFilterButton.removeActionListener(listener);
+					stopBrushSelectButton.removeActionListener(listener);
 					copyRoiButton.removeActionListener(listener);
 					loadClassifierButton.removeActionListener(listener);
 					saveClassifierButton.removeActionListener(listener);
@@ -1187,6 +1221,8 @@ public class Main implements PlugIn
 		//Instantiate the fascia path finder
 		fasciaFinder = new PathFinder();
 		fasciaFinder.setImage(displayImage);
+
+		brushFasciaFilter = new BrushFasciaFilter(displayImage);
 
 		//Build GUI
 		SwingUtilities.invokeLater(
@@ -3377,6 +3413,39 @@ public class Main implements PlugIn
 						overlayImage.setLut(labelLUT);
 						StackWindow result = new StackWindow(overlayImage);
 					}
+					else if (e.getSource() == startBrushSelectButton){
+                        exec.submit(new Runnable() {
+                            @Override
+                            public void run() {
+                                displayImage.killRoi();
+                                displayImage.updateAndDraw();
+                                IJ.log("Starting Fasica Brush Select");
+                                IJ.setTool("brush");
+
+                                //TODO Reset anything that the filter needs
+
+                                startBrushSelectButton.setEnabled(false);
+                                stopBrushSelectButton.setEnabled(true);
+                                applyBrushFilterButton.setEnabled(true);
+                            }
+                        });
+
+					}else if (e.getSource() == stopBrushSelectButton){
+
+                        startBrushSelectButton.setEnabled(true);
+					    stopBrushSelectButton.setEnabled(false);
+					}
+					else if (e.getSource() == applyBrushFilterButton) {
+                        exec.submit(new Runnable() {
+                            @Override
+                            public void run() {
+                                IJ.log("Pressed Apply button");
+                                //Send ROI to the filter
+                                final Roi roi = displayImage.getRoi();
+                                Roi outputRoi = brushFasciaFilter.filterPoints(roi);
+                            }
+                        });
+                    }
 					else if(e.getSource() == startScissorSelectButton){
 
 						exec.submit(new Runnable() {

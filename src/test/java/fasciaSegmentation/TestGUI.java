@@ -20,7 +20,7 @@ public class TestGUI {
 	{		
 		// Call the plugin with empty arguments (this
 		// will pop up an Open dialog)		
-		Debug.run("Trainable Weka Segmentation", "");
+		Debug.run("Fascia Plugin", "");
 	}
 
 }
